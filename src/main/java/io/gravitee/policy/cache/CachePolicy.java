@@ -51,10 +51,12 @@ public class CachePolicy {
 
     private final static char KEY_SEPARATOR = '_';
 
-    private final static String BYPASS_CACHE_QUERY_PARAMETER = "bypass-cache";
-    private final static String X_GRAVITEE_BYPASS_CACHE = "X-Gravitee-Bypass-Cache";
+    // Policy cache action
+    private final static String CACHE_ACTION_QUERY_PARAMETER = "cache";
+    private final static String X_GRAVITEE_CACHE_ACTION = "X-Gravitee-Cache";
 
-    private volatile Cache cache;
+    private Cache cache;
+    private CacheAction action;
 
     public CachePolicy(final CachePolicyConfiguration cachePolicyConfiguration) {
         this.cachePolicyConfiguration = cachePolicyConfiguration;
@@ -62,9 +64,9 @@ public class CachePolicy {
 
     @OnRequest
     public void onRequest(Request request, Response response, ExecutionContext executionContext, PolicyChain policyChain) {
-        boolean bypassCache = lookForByPass(request);
+        action = lookForAction(request);
 
-        if (! bypassCache) {
+        if (action != CacheAction.BY_PASS) {
             if (request.method() == HttpMethod.GET ||
                     request.method() == HttpMethod.OPTIONS ||
                     request.method() == HttpMethod.HEAD) {
@@ -111,7 +113,7 @@ public class CachePolicy {
 
             Element elt = cache.get(cacheId);
 
-            if (elt != null) {
+            if (elt != null && action != CacheAction.REFRESH) {
                 LOGGER.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
                 // Ok, there is a value for this request in cache
@@ -149,7 +151,11 @@ public class CachePolicy {
 
                 return noOpClientRequest;
             } else {
-                LOGGER.debug("No element for key {}, invoke upstream with invoker {}", cacheId, invoker.getClass().getName());
+                if (action == CacheAction.REFRESH) {
+                    LOGGER.info("A refresh action has been received for key {}, invoke backend with invoker", cacheId, invoker.getClass().getName());
+                } else {
+                    LOGGER.debug("No element for key {}, invoke backend with invoker {}", cacheId, invoker.getClass().getName());
+                }
 
                 // No value, let's do the default invocation and cache result in response
                 return invoker.invoke(executionContext, serverRequest, clientResponse -> {
@@ -324,23 +330,30 @@ public class CachePolicy {
         return timeToLive;
     }
 
-    private boolean lookForByPass(Request request) {
+    private CacheAction lookForAction(Request request) {
         // 1_ First, search in HTTP headers
-        String byPassCache = request.headers().getFirst(X_GRAVITEE_BYPASS_CACHE);
+        String cacheAction = request.headers().getFirst(X_GRAVITEE_CACHE_ACTION);
 
-        if (byPassCache == null || byPassCache.isEmpty()) {
+        if (cacheAction == null || cacheAction.isEmpty()) {
             // 2_ If not found, search in query parameters
-            byPassCache = (request.parameters().getOrDefault(BYPASS_CACHE_QUERY_PARAMETER, null) == null)
-                        ? Boolean.FALSE.toString() : Boolean.TRUE.toString();
+            cacheAction = request.parameters().get(CACHE_ACTION_QUERY_PARAMETER);
 
             // Do not propagate specific query parameter
-            request.parameters().remove(BYPASS_CACHE_QUERY_PARAMETER);
+            request.parameters().remove(CACHE_ACTION_QUERY_PARAMETER);
         } else {
             // Do not propagate specific header
-            request.headers().remove(X_GRAVITEE_BYPASS_CACHE);
-            byPassCache = Boolean.TRUE.toString();
+            request.headers().remove(X_GRAVITEE_CACHE_ACTION);
         }
 
-        return Boolean.parseBoolean(byPassCache);
+        try {
+            return CacheAction.valueOf((cacheAction != null) ? cacheAction.toUpperCase() : null);
+        } catch (IllegalArgumentException iae) {
+            return null;
+        }
+    }
+
+    private enum CacheAction {
+        REFRESH,
+        BY_PASS
     }
 }
