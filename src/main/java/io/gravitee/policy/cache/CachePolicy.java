@@ -130,15 +130,15 @@ public class CachePolicy {
 
                     @Override
                     public void end() {
-                        CacheElement cacheElement = (CacheElement) elt.value();
-                        CacheClientResponse response = new CacheClientResponse(cacheElement);
+                        CacheResponse cacheResponse = (CacheResponse) elt.value();
+                        CacheClientResponse response = new CacheClientResponse(cacheResponse);
 
-                        boolean hasContent = (cacheElement.getContent() != null && cacheElement.getContent().length() > 0);
+                        boolean hasContent = (cacheResponse.getContent() != null && cacheResponse.getContent().length() > 0);
 
                         handler.handle(response);
 
                         if (hasContent) {
-                            response.bodyHandler.handle(cacheElement.getContent());
+                            response.bodyHandler.handle(cacheResponse.getContent());
                         }
 
                         response.endHandler.handle(null);
@@ -159,20 +159,20 @@ public class CachePolicy {
 
                 // No value, let's do the default invocation and cache result in response
                 return invoker.invoke(executionContext, serverRequest, clientResponse -> {
-                    CacheElement element = new CacheElement();
+                    CacheResponse response = new CacheResponse();
 
                     handler.handle(new ClientResponse() {
                         final Buffer content = Buffer.buffer();
 
                         @Override
                         public int status() {
-                            element.setStatus(clientResponse.status());
+                            response.setStatus(clientResponse.status());
                             return clientResponse.status();
                         }
 
                         @Override
                         public HttpHeaders headers() {
-                            element.setHeaders(clientResponse.headers());
+                            response.setHeaders(clientResponse.headers());
                             return clientResponse.headers();
                         }
 
@@ -189,8 +189,8 @@ public class CachePolicy {
 
                             return clientResponse.endHandler(result -> {
                                 // Do not put content if not a success status code
-                                if (element.getStatus() >= 200 && element.getStatus() < 300) {
-                                    element.setContent(content);
+                                if (response.getStatus() >= 200 && response.getStatus() < 300) {
+                                    response.setContent(content);
 
                                     long timeToLive = -1;
                                     if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
@@ -203,25 +203,12 @@ public class CachePolicy {
                                     final long timeToLiveCache = timeToLive;
 
                                     LOGGER.debug("Put response in cache for key {} and request {}", cacheId, serverRequest.id());
-                                    cache.put(new Element() {
-                                        @Override
-                                        public Object key() {
-                                            return cacheId;
-                                        }
-
-                                        @Override
-                                        public Object value() {
-                                            return element;
-                                        }
-
-                                        @Override
-                                        public int timeToLive() {
-                                            return (int) timeToLiveCache;
-                                        }
-                                    });
+                                    CacheElement element = new CacheElement(cacheId, response);
+                                    element.setTimeToLive((int) timeToLiveCache);
+                                    cache.put(element);
                                 } else {
                                     LOGGER.debug("Response for key {} not put in cache because of the status code {}",
-                                            cacheId, element.getStatus());
+                                            cacheId, response.getStatus());
                                 }
                                 handler1.handle(result);
                             });
@@ -236,20 +223,20 @@ public class CachePolicy {
         private Handler<Buffer> bodyHandler;
         private Handler<Void> endHandler;
 
-        private final CacheElement cacheElement;
+        private final CacheResponse cacheResponse;
 
-        CacheClientResponse(final CacheElement cacheElement) {
-            this.cacheElement = cacheElement;
+        CacheClientResponse(final CacheResponse cacheResponse) {
+            this.cacheResponse = cacheResponse;
         }
 
         @Override
         public int status() {
-            return cacheElement.getStatus();
+            return cacheResponse.getStatus();
         }
 
         @Override
         public HttpHeaders headers() {
-            return cacheElement.getHeaders();
+            return cacheResponse.getHeaders();
         }
 
         @Override

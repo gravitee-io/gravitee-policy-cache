@@ -15,45 +15,42 @@
  */
 package io.gravitee.policy.cache;
 
-import io.gravitee.resource.cache.Element;
+import io.gravitee.common.http.HttpHeaders;
+import io.gravitee.gateway.api.buffer.Buffer;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
-class CacheElement implements Element {
+public class CacheResponse {
 
-    private final String key;
+    private int status;
 
-    private final CacheResponse response;
+    private HttpHeaders headers;
 
-    private int timeToLive = 0;
+    private Buffer content;
 
-    CacheElement(String key, CacheResponse response) {
-        this.key = key;
-        this.response = response;
+    public Buffer getContent() {
+        return content;
     }
 
-    public int getTimeToLive() {
-        return timeToLive;
+    public void setContent(Buffer content) {
+        this.content = content;
     }
 
-    public void setTimeToLive(int timeToLive) {
-        this.timeToLive = timeToLive;
+    public HttpHeaders getHeaders() {
+        return headers;
     }
 
-    @Override
-    public Object key() {
-        return key;
+    public void setHeaders(HttpHeaders headers) {
+        this.headers = headers;
     }
 
-    @Override
-    public Object value() {
-        return response;
+    public int getStatus() {
+        return status;
     }
 
-    @Override
-    public int timeToLive() {
-        return timeToLive;
+    public void setStatus(int status) {
+        this.status = status;
     }
 }
