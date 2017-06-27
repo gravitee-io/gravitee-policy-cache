@@ -16,7 +16,7 @@
 package io.gravitee.policy.cache;
 
 import io.gravitee.common.http.HttpHeaders;
-import io.gravitee.gateway.api.ClientResponse;
+import io.gravitee.gateway.api.proxy.ProxyResponse;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,7 +37,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 public class CachePolicyTest {
 
     @Mock
-    protected ClientResponse response;
+    protected ProxyResponse response;
 
     @Before
     public void init() {

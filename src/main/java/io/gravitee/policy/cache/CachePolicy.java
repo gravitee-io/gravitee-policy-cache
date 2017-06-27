@@ -17,9 +17,14 @@ package io.gravitee.policy.cache;
 
 import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpMethod;
-import io.gravitee.gateway.api.*;
+import io.gravitee.gateway.api.ExecutionContext;
+import io.gravitee.gateway.api.Invoker;
+import io.gravitee.gateway.api.Request;
+import io.gravitee.gateway.api.Response;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.handler.Handler;
+import io.gravitee.gateway.api.proxy.ProxyConnection;
+import io.gravitee.gateway.api.proxy.ProxyResponse;
 import io.gravitee.gateway.api.stream.ReadStream;
 import io.gravitee.policy.api.PolicyChain;
 import io.gravitee.policy.api.PolicyResult;
@@ -37,7 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 
 /**
- * @author David BRASSELY (brasseld at gmail.com)
+ * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
 public class CachePolicy {
@@ -106,7 +111,7 @@ public class CachePolicy {
         }
 
         @Override
-        public ClientRequest invoke(ExecutionContext executionContext, Request serverRequest, Handler<ClientResponse> handler) {
+        public ProxyConnection invoke(ExecutionContext executionContext, Request serverRequest, Handler<ProxyResponse> handler) {
             // Here we have to check if there is a value in cache
             String cacheId = hash(serverRequest, executionContext);
             LOGGER.debug("Looking for element in cache with the key {}", cacheId);
@@ -117,21 +122,16 @@ public class CachePolicy {
                 LOGGER.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
                 // Ok, there is a value for this request in cache
-                ClientRequest noOpClientRequest = new ClientRequest() {
+                ProxyConnection noOpClientRequest = new ProxyConnection() {
                     @Override
-                    public ClientRequest connectTimeoutHandler(Handler<Throwable> handler) {
-                        return this;
-                    }
-
-                    @Override
-                    public ClientRequest write(Buffer buffer) {
+                    public ProxyConnection write(Buffer buffer) {
                         return this;
                     }
 
                     @Override
                     public void end() {
                         CacheResponse cacheResponse = (CacheResponse) elt.value();
-                        CacheClientResponse response = new CacheClientResponse(cacheResponse);
+                        CacheProxyResponse response = new CacheProxyResponse(cacheResponse);
 
                         boolean hasContent = (cacheResponse.getContent() != null && cacheResponse.getContent().length() > 0);
 
@@ -161,7 +161,7 @@ public class CachePolicy {
                 return invoker.invoke(executionContext, serverRequest, clientResponse -> {
                     CacheResponse response = new CacheResponse();
 
-                    handler.handle(new ClientResponse() {
+                    handler.handle(new ProxyResponse() {
                         final Buffer content = Buffer.buffer();
 
                         @Override
@@ -219,13 +219,13 @@ public class CachePolicy {
         }
     }
 
-    class CacheClientResponse implements ClientResponse {
+    class CacheProxyResponse implements ProxyResponse {
         private Handler<Buffer> bodyHandler;
         private Handler<Void> endHandler;
 
         private final CacheResponse cacheResponse;
 
-        CacheClientResponse(final CacheResponse cacheResponse) {
+        CacheProxyResponse(final CacheResponse cacheResponse) {
             this.cacheResponse = cacheResponse;
         }
 
@@ -240,13 +240,13 @@ public class CachePolicy {
         }
 
         @Override
-        public ClientResponse bodyHandler(Handler<Buffer> bodyPartHandler) {
+        public ProxyResponse bodyHandler(Handler<Buffer> bodyPartHandler) {
             this.bodyHandler = bodyPartHandler;
             return this;
         }
 
         @Override
-        public ClientResponse endHandler(Handler<Void> endHandler) {
+        public ProxyResponse endHandler(Handler<Void> endHandler) {
             this.endHandler = endHandler;
             return this;
         }
@@ -285,7 +285,7 @@ public class CachePolicy {
         return sb.toString();
     }
 
-    public long resolveTimeToLive(ClientResponse response) {
+    public long resolveTimeToLive(ProxyResponse response) {
         long timeToLive = -1;
         if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
             timeToLive = timeToLiveFromResponse(response);
@@ -298,7 +298,7 @@ public class CachePolicy {
         return timeToLive;
     }
 
-    public static long timeToLiveFromResponse(ClientResponse response) {
+    public static long timeToLiveFromResponse(ProxyResponse response) {
         long timeToLive = -1;
             CacheControl cacheControl = CacheControlUtil.parseCacheControl(response.headers().getFirst(HttpHeaders.CACHE_CONTROL));
 
