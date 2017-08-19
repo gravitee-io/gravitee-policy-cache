@@ -323,7 +323,7 @@ public class CachePolicy {
 
         if (cacheAction == null || cacheAction.isEmpty()) {
             // 2_ If not found, search in query parameters
-            cacheAction = request.parameters().get(CACHE_ACTION_QUERY_PARAMETER);
+            cacheAction = request.parameters().getFirst(CACHE_ACTION_QUERY_PARAMETER);
 
             // Do not propagate specific query parameter
             request.parameters().remove(CACHE_ACTION_QUERY_PARAMETER);
