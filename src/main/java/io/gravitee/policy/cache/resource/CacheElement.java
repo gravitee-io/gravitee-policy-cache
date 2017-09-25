@@ -13,15 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.policy.cache;
+package io.gravitee.policy.cache.resource;
 
+import io.gravitee.policy.cache.CacheResponse;
 import io.gravitee.resource.cache.Element;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
-class CacheElement implements Element {
+public class CacheElement implements Element {
 
     private final String key;
 
@@ -29,7 +30,7 @@ class CacheElement implements Element {
 
     private int timeToLive = 0;
 
-    CacheElement(String key, CacheResponse response) {
+    public CacheElement(String key, CacheResponse response) {
         this.key = key;
         this.response = response;
     }

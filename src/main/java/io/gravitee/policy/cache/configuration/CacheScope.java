@@ -16,7 +16,7 @@
 package io.gravitee.policy.cache.configuration;
 
 /**
- * @author David BRASSELY (brasseld at gmail.com)
+ * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
 public enum CacheScope {

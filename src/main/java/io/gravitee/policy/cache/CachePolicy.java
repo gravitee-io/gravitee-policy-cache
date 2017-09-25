@@ -17,6 +17,7 @@ package io.gravitee.policy.cache;
 
 import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpMethod;
+import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.ExecutionContext;
 import io.gravitee.gateway.api.Invoker;
 import io.gravitee.gateway.api.Request;
@@ -30,6 +31,8 @@ import io.gravitee.policy.api.PolicyChain;
 import io.gravitee.policy.api.PolicyResult;
 import io.gravitee.policy.api.annotations.OnRequest;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
+import io.gravitee.policy.cache.proxy.CacheProxyConnection;
+import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.policy.cache.util.CacheControlUtil;
 import io.gravitee.policy.cache.util.ExpiresUtil;
 import io.gravitee.resource.api.ResourceManager;
@@ -111,45 +114,26 @@ public class CachePolicy {
         }
 
         @Override
-        public ProxyConnection invoke(ExecutionContext executionContext, Request serverRequest, Handler<ProxyResponse> handler) {
+        public Request invoke(ExecutionContext executionContext, Request serverRequest, ReadStream<Buffer> stream, Handler<ProxyConnection> connectionHandler) {
             // Here we have to check if there is a value in cache
             String cacheId = hash(serverRequest, executionContext);
             LOGGER.debug("Looking for element in cache with the key {}", cacheId);
 
             Element elt = cache.get(cacheId);
 
+
             if (elt != null && action != CacheAction.REFRESH) {
                 LOGGER.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
-                // Ok, there is a value for this request in cache
-                ProxyConnection noOpClientRequest = new ProxyConnection() {
-                    @Override
-                    public ProxyConnection write(Buffer buffer) {
-                        return this;
-                    }
+                final ProxyConnection proxyConnection = new CacheProxyConnection((CacheResponse) elt.value());
 
-                    @Override
-                    public void end() {
-                        CacheResponse cacheResponse = (CacheResponse) elt.value();
-                        CacheProxyResponse response = new CacheProxyResponse(cacheResponse);
+                // Ok, there is a value for this request in cache so send it through proxy connection
+                connectionHandler.handle(proxyConnection);
 
-                        boolean hasContent = (cacheResponse.getContent() != null && cacheResponse.getContent().length() > 0);
-
-                        handler.handle(response);
-
-                        if (hasContent) {
-                            response.bodyHandler.handle(cacheResponse.getContent());
-                        }
-
-                        response.endHandler.handle(null);
-                    }
-                };
-
-                serverRequest
-                        .bodyHandler(noOpClientRequest::write)
-                        .endHandler(endResult -> noOpClientRequest.end());
-
-                return noOpClientRequest;
+                // Plug underlying stream to connection stream
+                stream
+                        .bodyHandler(proxyConnection::write)
+                        .endHandler(aVoid -> proxyConnection.end());
             } else {
                 if (action == CacheAction.REFRESH) {
                     LOGGER.info("A refresh action has been received for key {}, invoke backend with invoker", cacheId, invoker.getClass().getName());
@@ -158,97 +142,133 @@ public class CachePolicy {
                 }
 
                 // No value, let's do the default invocation and cache result in response
-                return invoker.invoke(executionContext, serverRequest, clientResponse -> {
-                    CacheResponse response = new CacheResponse();
+                invoker.invoke(executionContext, serverRequest, stream, proxyConnection -> {
 
-                    handler.handle(new ProxyResponse() {
-                        final Buffer content = Buffer.buffer();
+                    LOGGER.debug("Put response in cache for key {} and request {}", cacheId, serverRequest.id());
 
+                    ProxyConnection cacheProxyConnection = new ProxyConnection() {
                         @Override
-                        public int status() {
-                            response.setStatus(clientResponse.status());
-                            return clientResponse.status();
+                        public ProxyConnection write(Buffer buffer) {
+                            proxyConnection.write(buffer);
+                            return this;
                         }
 
                         @Override
-                        public HttpHeaders headers() {
-                            response.setHeaders(clientResponse.headers());
-                            return clientResponse.headers();
+                        public void end() {
+                            proxyConnection.end();
                         }
 
                         @Override
-                        public ReadStream<Buffer> bodyHandler(Handler<Buffer> handler1) {
-                            return clientResponse.bodyHandler(chunk -> {
-                                content.appendBuffer(chunk);
-                                handler1.handle(chunk);
-                            });
+                        public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
+                            return proxyConnection.responseHandler(new CacheResponseHandler(cacheId, responseHandler));
                         }
+                    };
 
-                        @Override
-                        public ReadStream<Buffer> endHandler(Handler<Void> handler1) {
-
-                            return clientResponse.endHandler(result -> {
-                                // Do not put content if not a success status code
-                                if (response.getStatus() >= 200 && response.getStatus() < 300) {
-                                    response.setContent(content);
-
-                                    long timeToLive = -1;
-                                    if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
-                                        timeToLive = resolveTimeToLive(clientResponse);
-                                    }
-                                    if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
-                                        timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
-                                    }
-
-                                    final long timeToLiveCache = timeToLive;
-
-                                    LOGGER.debug("Put response in cache for key {} and request {}", cacheId, serverRequest.id());
-                                    CacheElement element = new CacheElement(cacheId, response);
-                                    element.setTimeToLive((int) timeToLiveCache);
-                                    cache.put(element);
-                                } else {
-                                    LOGGER.debug("Response for key {} not put in cache because of the status code {}",
-                                            cacheId, response.getStatus());
-                                }
-                                handler1.handle(result);
-                            });
-                        }
-                    });
+                    connectionHandler.handle(cacheProxyConnection);
                 });
             }
+
+            // Resume the incoming request to handle content and end
+            serverRequest.resume();
+
+            return serverRequest;
         }
     }
 
-    class CacheProxyResponse implements ProxyResponse {
-        private Handler<Buffer> bodyHandler;
-        private Handler<Void> endHandler;
+    class CacheResponseHandler implements Handler<ProxyResponse> {
+        private final String cacheId;
+        private final Handler<ProxyResponse> responseHandler;
+        private final CacheResponse response = new CacheResponse();
 
-        private final CacheResponse cacheResponse;
-
-        CacheProxyResponse(final CacheResponse cacheResponse) {
-            this.cacheResponse = cacheResponse;
+        CacheResponseHandler(final String cacheId, final Handler<ProxyResponse> responseHandler) {
+            this.cacheId =  cacheId;
+            this.responseHandler = responseHandler;
         }
 
         @Override
-        public int status() {
-            return cacheResponse.getStatus();
+        public void handle(ProxyResponse proxyResponse) {
+            if (proxyResponse.status() >= HttpStatusCode.OK_200 && proxyResponse.status() < HttpStatusCode.MULTIPLE_CHOICES_300) {
+                responseHandler.handle(new CacheProxyResponse(proxyResponse, cacheId));
+            } else {
+                LOGGER.debug("Response for key {} not put in cache because of the status code {}",
+                        cacheId, proxyResponse.status());
+                responseHandler.handle(proxyResponse);
+            }
         }
 
-        @Override
-        public HttpHeaders headers() {
-            return cacheResponse.getHeaders();
-        }
+        class CacheProxyResponse implements ProxyResponse {
 
-        @Override
-        public ProxyResponse bodyHandler(Handler<Buffer> bodyPartHandler) {
-            this.bodyHandler = bodyPartHandler;
-            return this;
-        }
+            private final ProxyResponse proxyResponse;
+            private final String cacheId;
 
-        @Override
-        public ProxyResponse endHandler(Handler<Void> endHandler) {
-            this.endHandler = endHandler;
-            return this;
+            final Buffer content = Buffer.buffer();
+
+            CacheProxyResponse(final ProxyResponse proxyResponse, final String cacheId) {
+                this.proxyResponse = proxyResponse;
+                this.cacheId = cacheId;
+            }
+
+            @Override
+            public ReadStream<Buffer> bodyHandler(Handler<Buffer> bodyHandler) {
+                this.proxyResponse.bodyHandler(new Handler<Buffer>() {
+                    @Override
+                    public void handle(Buffer chunk) {
+                        bodyHandler.handle(chunk);
+                        content.appendBuffer(chunk);
+                    }
+                });
+
+                return this;
+            }
+
+            @Override
+            public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
+                this.proxyResponse.endHandler(new Handler<Void>() {
+                    @Override
+                    public void handle(Void result) {
+                        endHandler.handle(result);
+
+                        response.setStatus(proxyResponse.status());
+                        response.setHeaders(proxyResponse.headers());
+
+                        response.setContent(content);
+
+                        long timeToLive = -1;
+                        if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
+                            timeToLive = resolveTimeToLive(proxyResponse);
+                        }
+                        if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
+                            timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
+                        }
+
+                        CacheElement element = new CacheElement(cacheId, response);
+                        element.setTimeToLive((int) timeToLive);
+                        cache.put(element);
+                    }
+                });
+
+                return this;
+            }
+
+            @Override
+            public ReadStream<Buffer> pause() {
+                return proxyResponse.pause();
+            }
+
+            @Override
+            public ReadStream<Buffer> resume() {
+                return proxyResponse.resume();
+            }
+
+            @Override
+            public int status() {
+                return proxyResponse.status();
+            }
+
+            @Override
+            public HttpHeaders headers() {
+                return proxyResponse.headers();
+            }
         }
     }
 
@@ -259,7 +279,7 @@ public class CachePolicy {
      * @param executionContext
      * @return
      */
-    public String hash(Request request, ExecutionContext executionContext) {
+    private String hash(Request request, ExecutionContext executionContext) {
         StringBuilder sb = new StringBuilder();
         switch (cachePolicyConfiguration.getScope()) {
             case APPLICATION:

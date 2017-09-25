@@ -18,7 +18,7 @@ package io.gravitee.policy.cache.configuration;
 import io.gravitee.policy.api.PolicyConfiguration;
 
 /**
- * @author David BRASSELY (brasseld at gmail.com)
+ * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
 public class CachePolicyConfiguration implements PolicyConfiguration {
