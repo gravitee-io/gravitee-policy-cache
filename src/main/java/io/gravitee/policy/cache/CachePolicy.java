@@ -114,9 +114,9 @@ public class CachePolicy {
         }
 
         @Override
-        public Request invoke(ExecutionContext executionContext, Request serverRequest, ReadStream<Buffer> stream, Handler<ProxyConnection> connectionHandler) {
+        public void invoke(ExecutionContext executionContext, ReadStream<Buffer> stream, Handler<ProxyConnection> connectionHandler) {
             // Here we have to check if there is a value in cache
-            String cacheId = hash(serverRequest, executionContext);
+            String cacheId = hash(executionContext);
             LOGGER.debug("Looking for element in cache with the key {}", cacheId);
 
             Element elt = cache.get(cacheId);
@@ -134,6 +134,9 @@ public class CachePolicy {
                 stream
                         .bodyHandler(proxyConnection::write)
                         .endHandler(aVoid -> proxyConnection.end());
+
+                // Resume the incoming request to handle content and end
+                executionContext.request().resume();
             } else {
                 if (action == CacheAction.REFRESH) {
                     LOGGER.info("A refresh action has been received for key {}, invoke backend with invoker", cacheId, invoker.getClass().getName());
@@ -142,9 +145,9 @@ public class CachePolicy {
                 }
 
                 // No value, let's do the default invocation and cache result in response
-                invoker.invoke(executionContext, serverRequest, stream, proxyConnection -> {
+                invoker.invoke(executionContext, stream, proxyConnection -> {
 
-                    LOGGER.debug("Put response in cache for key {} and request {}", cacheId, serverRequest.id());
+                    LOGGER.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
 
                     ProxyConnection cacheProxyConnection = new ProxyConnection() {
                         @Override
@@ -167,11 +170,6 @@ public class CachePolicy {
                     connectionHandler.handle(cacheProxyConnection);
                 });
             }
-
-            // Resume the incoming request to handle content and end
-            serverRequest.resume();
-
-            return serverRequest;
         }
     }
 
@@ -275,11 +273,10 @@ public class CachePolicy {
     /**
      * Generate a unique identifier for the cache key.
      *
-     * @param request
      * @param executionContext
      * @return
      */
-    private String hash(Request request, ExecutionContext executionContext) {
+    private String hash(ExecutionContext executionContext) {
         StringBuilder sb = new StringBuilder();
         switch (cachePolicyConfiguration.getScope()) {
             case APPLICATION:
@@ -291,7 +288,7 @@ public class CachePolicy {
                 break;
         }
 
-        sb.append(request.path().hashCode()).append(KEY_SEPARATOR);
+        sb.append(executionContext.request().path().hashCode()).append(KEY_SEPARATOR);
 
         String key = cachePolicyConfiguration.getKey();
         if (key != null && ! key.isEmpty()) {
