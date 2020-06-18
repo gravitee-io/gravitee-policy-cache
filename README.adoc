@@ -27,8 +27,8 @@ policy configuration: _cacheName_).
 
 WARNING: Cache policy requires a cache resource. If none is defined or not well configured, the API will not be deployed.
 
-Consumer can by-pass cache by adding a _bypass-cache=true_ query parameter or by providing a
-_X-Gravitee-Bypass-Cache=true_ HTTP header.
+Consumer can by-pass cache by adding a _cache=BY_PASS_ query parameter or by providing a
+_X-Gravitee-Cache=BY_PASS_ HTTP header.
 
 == Configuration
 
