@@ -1,4 +1,4 @@
-= Cache Policy
+= Cache policy
 
 ifdef::env-github[]
 image:https://ci.gravitee.io/buildStatus/icon?job=gravitee-io/gravitee-policy-cache/master["Build status", link="https://ci.gravitee.io/job/gravitee-io/job/gravitee-policy-cache/"]
@@ -17,22 +17,21 @@ endif::[]
 
 == Description
 
-Cache policy enables the user to _cache_ upstream response (content, status and headers) and avoid subsequent calls to
-the backend.
+You can use the `cache` policy to cache upstream responses (content, status and headers) to eliminate the need for subsequent calls to
+the back end.
 
-This policy is based on a _cache resource_ defined at the API level and let the underlying cache system to follow the
-API lifecycle (stop / start). Please have a look to <<apim_resources_cache.adoc#, Cache resource>>
-This means that a _cache resource_ must be defined to be used by this policy (the resource name is specified in the
-policy configuration: _cacheName_).
+This policy is based on a _cache resource_, which aligns the underlying cache system with the
+API lifecycle (stop / start).
 
-WARNING: Cache policy requires a cache resource. If none is defined or not well configured, the API will not be deployed.
+Consumers can bypass the cache by adding a `cache=BY_PASS_` query parameter or by providing a
+`_X-Gravitee-Cache=BY_PASS_` HTTP header.
 
-Consumer can by-pass cache by adding a _cache=BY_PASS_ query parameter or by providing a
-_X-Gravitee-Cache=BY_PASS_ HTTP header.
+NOTE: If no cache resource is defined for the policy or it is not well configured, the API will not be deployed. The resource name is specified in the
+policy configuration `cacheName`, as described below.
 
 == Configuration
 
-You can configure the policy with the following options :
+You can configure the policy with the following options:
 
 |===
 |Property |Required |Description |Type |Default
@@ -45,30 +44,36 @@ You can configure the policy with the following options :
 
 |===
 
+== Examples
 
-The key used to store element in cache can use the internal Expression Language to provide a dynamic value.
+The key used to store elements in cache can use the Gravitee Expression Language to provide a dynamic value.
+
+TIP: To learn more about the Gravitee Expression Language, see the *API Publisher Guide*.
+
+=== Key based on the `productId` query parameter
 
 [source, json]
-.Key based on the productId query parameter
 ----
 "key": "{#request.params['productId']}"
 ----
 
+=== Key based on the `api-key` of the consumer
+
 [source, json]
-.Key based on the api-key of the consumer
 ----
 "key": "{#request.headers['X-Gravitee-Api-Key']}"
 ----
 
+=== Key based on an API's property and a query parameter
+
 [source, json]
-.Key based on an API's property and a query parameter
 ----
 "key": "{#properties['siteID']}-{#request.params['productId']}"
 ----
 
+=== Configuration example
 
 [source, json]
-.Configuration example
 ----
 "cache": {
     "cacheName": "policy-cache",
