@@ -15,8 +15,11 @@
     },
     "key": {
       "title": "Key",
-      "description": "The key used to store the element (support EL).",
-      "type": "string"
+      "description": "The key used to store the element (Support EL).",
+      "type": "string",
+      "x-schema-form": {
+        "expression-language": true
+      }
     },
     "timeToLiveSeconds": {
       "title": "Time to live (in seconds)",
