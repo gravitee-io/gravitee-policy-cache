@@ -16,7 +16,6 @@
 package io.gravitee.policy.cache.util;
 
 import io.gravitee.policy.cache.CacheControl;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.regex.Matcher;
@@ -76,15 +75,25 @@ public final class CacheControlUtil {
      * Cache Control Directives
      */
     public enum Directive {
-        MAXAGE, MAXSTALE, MINFRESH, NOCACHE, NOSTORE, NOTRANSFORM, ONLYIFCACHED, MUSTREVALIDATE, PRIVATE,
-        PROXYREVALIDATE, PUBLIC, SMAXAGE, UNKNOWN;
+        MAXAGE,
+        MAXSTALE,
+        MINFRESH,
+        NOCACHE,
+        NOSTORE,
+        NOTRANSFORM,
+        ONLYIFCACHED,
+        MUSTREVALIDATE,
+        PRIVATE,
+        PROXYREVALIDATE,
+        PUBLIC,
+        SMAXAGE,
+        UNKNOWN;
 
         public static Directive select(String d) {
             try {
                 d = d.toUpperCase().replaceAll("-", "");
                 return Directive.valueOf(d);
-            } catch (Exception e) {
-            }
+            } catch (Exception e) {}
             return UNKNOWN;
         }
     }
@@ -94,8 +103,7 @@ public final class CacheControlUtil {
      */
     public static class CacheControlParser implements Iterable<Directive> {
 
-        private static final String REGEX =
-                "\\s*([\\w\\-]+)\\s*(=)?\\s*(\\d+|\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)+\")?\\s*";
+        private static final String REGEX = "\\s*([\\w\\-]+)\\s*(=)?\\s*(\\d+|\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)+\")?\\s*";
 
         private static final Pattern pattern = Pattern.compile(REGEX);
 

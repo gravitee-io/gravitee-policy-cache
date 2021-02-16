@@ -21,5 +21,5 @@ package io.gravitee.policy.cache.configuration;
  */
 public enum CacheScope {
     API,
-    APPLICATION
+    APPLICATION,
 }
