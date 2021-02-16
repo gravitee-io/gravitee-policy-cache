@@ -15,6 +15,7 @@
  */
 package io.gravitee.policy.cache;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.http.HttpStatusCode;
@@ -31,6 +32,7 @@ import io.gravitee.policy.api.PolicyChain;
 import io.gravitee.policy.api.PolicyResult;
 import io.gravitee.policy.api.annotations.OnRequest;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
+import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.policy.cache.proxy.CacheProxyConnection;
 import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.policy.cache.util.CacheControlUtil;
@@ -39,10 +41,9 @@ import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.Cache;
 import io.gravitee.resource.cache.CacheResource;
 import io.gravitee.resource.cache.Element;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.Instant;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
@@ -57,14 +58,16 @@ public class CachePolicy {
      */
     private final CachePolicyConfiguration cachePolicyConfiguration;
 
-    private final static char KEY_SEPARATOR = '_';
+    private static final char KEY_SEPARATOR = '_';
 
     // Policy cache action
-    private final static String CACHE_ACTION_QUERY_PARAMETER = "cache";
-    private final static String X_GRAVITEE_CACHE_ACTION = "X-Gravitee-Cache";
+    private static final String CACHE_ACTION_QUERY_PARAMETER = "cache";
+    private static final String X_GRAVITEE_CACHE_ACTION = "X-Gravitee-Cache";
 
     private Cache cache;
     private CacheAction action;
+
+    private CacheResponseMapper mapper = new CacheResponseMapper();
 
     public CachePolicy(final CachePolicyConfiguration cachePolicyConfiguration) {
         this.cachePolicyConfiguration = cachePolicyConfiguration;
@@ -75,20 +78,18 @@ public class CachePolicy {
         action = lookForAction(request);
 
         if (action != CacheAction.BY_PASS) {
-            if (request.method() == HttpMethod.GET ||
-                    request.method() == HttpMethod.OPTIONS ||
-                    request.method() == HttpMethod.HEAD) {
-
+            if (request.method() == HttpMethod.GET || request.method() == HttpMethod.OPTIONS || request.method() == HttpMethod.HEAD) {
                 // It's safe to do so because a new instance of policy is created for each request.
                 String cacheName = cachePolicyConfiguration.getCacheName();
-                CacheResource cacheResource = executionContext.getComponent(ResourceManager.class)
-                        .getResource(cacheName, CacheResource.class);
+                CacheResource cacheResource = executionContext
+                    .getComponent(ResourceManager.class)
+                    .getResource(cacheName, CacheResource.class);
                 if (cacheResource == null) {
                     policyChain.failWith(PolicyResult.failure("No cache has been defined with name " + cacheName));
                     return;
                 }
 
-                cache = cacheResource.getCache();
+                cache = cacheResource.getCache(executionContext);
                 if (cache == null) {
                     policyChain.failWith(PolicyResult.failure("No cache named [ " + cacheName + " ] has been found."));
                     return;
@@ -121,65 +122,80 @@ public class CachePolicy {
 
             Element elt = cache.get(cacheId);
 
-
             if (elt != null && action != CacheAction.REFRESH) {
                 LOGGER.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
-                final ProxyConnection proxyConnection = new CacheProxyConnection((CacheResponse) elt.value());
+                try {
+                    final ProxyConnection proxyConnection = new CacheProxyConnection(
+                        mapper.readValue(elt.value().toString(), CacheResponse.class)
+                    );
 
-                // Ok, there is a value for this request in cache so send it through proxy connection
-                connectionHandler.handle(proxyConnection);
+                    // Ok, there is a value for this request in cache so send it through proxy connection
+                    connectionHandler.handle(proxyConnection);
 
-                // Plug underlying stream to connection stream
-                stream
-                        .bodyHandler(proxyConnection::write)
-                        .endHandler(aVoid -> proxyConnection.end());
+                    // Plug underlying stream to connection stream
+                    stream.bodyHandler(proxyConnection::write).endHandler(aVoid -> proxyConnection.end());
+                } catch (JsonProcessingException e) {
+                    LOGGER.error(
+                        "Cannot deserialize element with key {}, invoke backend with invoker {}",
+                        cacheId,
+                        invoker.getClass().getName()
+                    );
+                }
 
                 // Resume the incoming request to handle content and end
                 executionContext.request().resume();
             } else {
                 if (action == CacheAction.REFRESH) {
-                    LOGGER.info("A refresh action has been received for key {}, invoke backend with invoker", cacheId, invoker.getClass().getName());
+                    LOGGER.info(
+                        "A refresh action has been received for key {}, invoke backend with invoker",
+                        cacheId,
+                        invoker.getClass().getName()
+                    );
                 } else {
                     LOGGER.debug("No element for key {}, invoke backend with invoker {}", cacheId, invoker.getClass().getName());
                 }
 
                 // No value, let's do the default invocation and cache result in response
-                invoker.invoke(executionContext, stream, proxyConnection -> {
+                invoker.invoke(
+                    executionContext,
+                    stream,
+                    proxyConnection -> {
+                        LOGGER.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
 
-                    LOGGER.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
+                        ProxyConnection cacheProxyConnection = new ProxyConnection() {
+                            @Override
+                            public ProxyConnection write(Buffer buffer) {
+                                proxyConnection.write(buffer);
+                                return this;
+                            }
 
-                    ProxyConnection cacheProxyConnection = new ProxyConnection() {
-                        @Override
-                        public ProxyConnection write(Buffer buffer) {
-                            proxyConnection.write(buffer);
-                            return this;
-                        }
+                            @Override
+                            public void end() {
+                                proxyConnection.end();
+                            }
 
-                        @Override
-                        public void end() {
-                            proxyConnection.end();
-                        }
+                            @Override
+                            public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
+                                return proxyConnection.responseHandler(new CacheResponseHandler(cacheId, responseHandler));
+                            }
+                        };
 
-                        @Override
-                        public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
-                            return proxyConnection.responseHandler(new CacheResponseHandler(cacheId, responseHandler));
-                        }
-                    };
-
-                    connectionHandler.handle(cacheProxyConnection);
-                });
+                        connectionHandler.handle(cacheProxyConnection);
+                    }
+                );
             }
         }
     }
 
     class CacheResponseHandler implements Handler<ProxyResponse> {
+
         private final String cacheId;
         private final Handler<ProxyResponse> responseHandler;
         private final CacheResponse response = new CacheResponse();
 
         CacheResponseHandler(final String cacheId, final Handler<ProxyResponse> responseHandler) {
-            this.cacheId =  cacheId;
+            this.cacheId = cacheId;
             this.responseHandler = responseHandler;
         }
 
@@ -188,8 +204,7 @@ public class CachePolicy {
             if (proxyResponse.status() >= HttpStatusCode.OK_200 && proxyResponse.status() < HttpStatusCode.MULTIPLE_CHOICES_300) {
                 responseHandler.handle(new CacheProxyResponse(proxyResponse, cacheId));
             } else {
-                LOGGER.debug("Response for key {} not put in cache because of the status code {}",
-                        cacheId, proxyResponse.status());
+                LOGGER.debug("Response for key {} not put in cache because of the status code {}", cacheId, proxyResponse.status());
                 responseHandler.handle(proxyResponse);
             }
         }
@@ -208,42 +223,50 @@ public class CachePolicy {
 
             @Override
             public ReadStream<Buffer> bodyHandler(Handler<Buffer> bodyHandler) {
-                this.proxyResponse.bodyHandler(new Handler<Buffer>() {
-                    @Override
-                    public void handle(Buffer chunk) {
-                        bodyHandler.handle(chunk);
-                        content.appendBuffer(chunk);
-                    }
-                });
+                this.proxyResponse.bodyHandler(
+                        new Handler<Buffer>() {
+                            @Override
+                            public void handle(Buffer chunk) {
+                                bodyHandler.handle(chunk);
+                                content.appendBuffer(chunk);
+                            }
+                        }
+                    );
 
                 return this;
             }
 
             @Override
             public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
-                this.proxyResponse.endHandler(new Handler<Void>() {
-                    @Override
-                    public void handle(Void result) {
-                        endHandler.handle(result);
+                this.proxyResponse.endHandler(
+                        new Handler<Void>() {
+                            @Override
+                            public void handle(Void result) {
+                                endHandler.handle(result);
 
-                        response.setStatus(proxyResponse.status());
-                        response.setHeaders(proxyResponse.headers());
+                                response.setStatus(proxyResponse.status());
+                                response.setHeaders(proxyResponse.headers());
 
-                        response.setContent(content);
+                                response.setContent(content);
 
-                        long timeToLive = -1;
-                        if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
-                            timeToLive = resolveTimeToLive(proxyResponse);
+                                long timeToLive = -1;
+                                if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
+                                    timeToLive = resolveTimeToLive(proxyResponse);
+                                }
+                                if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
+                                    timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
+                                }
+
+                                try {
+                                    CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
+                                    element.setTimeToLive((int) timeToLive);
+                                    cache.put(element);
+                                } catch (JsonProcessingException e) {
+                                    LOGGER.error("Cannot serialize element with key {}", cacheId);
+                                }
+                            }
                         }
-                        if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
-                            timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
-                        }
-
-                        CacheElement element = new CacheElement(cacheId, response);
-                        element.setTimeToLive((int) timeToLive);
-                        cache.put(element);
-                    }
-                });
+                    );
 
                 return this;
             }
@@ -291,7 +314,7 @@ public class CachePolicy {
         sb.append(executionContext.request().path().hashCode()).append(KEY_SEPARATOR);
 
         String key = cachePolicyConfiguration.getKey();
-        if (key != null && ! key.isEmpty()) {
+        if (key != null && !key.isEmpty()) {
             key = executionContext.getTemplateEngine().convert(key);
             sb.append(key);
         } else {
@@ -317,19 +340,19 @@ public class CachePolicy {
 
     public static long timeToLiveFromResponse(ProxyResponse response) {
         long timeToLive = -1;
-            CacheControl cacheControl = CacheControlUtil.parseCacheControl(response.headers().getFirst(HttpHeaders.CACHE_CONTROL));
+        CacheControl cacheControl = CacheControlUtil.parseCacheControl(response.headers().getFirst(HttpHeaders.CACHE_CONTROL));
 
-            if (cacheControl != null && cacheControl.getSMaxAge() != -1) {
-                timeToLive = cacheControl.getSMaxAge();
-            } else if (cacheControl != null && cacheControl.getMaxAge() != -1) {
-                timeToLive = cacheControl.getMaxAge();
-            } else {
-                Instant expiresAt = ExpiresUtil.parseExpires(response.headers().getFirst(HttpHeaders.EXPIRES));
-                if (expiresAt != null) {
-                    long expiresInSeconds = (expiresAt.toEpochMilli() - System.currentTimeMillis()) / 1000;
-                    timeToLive = (expiresInSeconds < 0) ? -1 : expiresInSeconds;
-                }
+        if (cacheControl != null && cacheControl.getSMaxAge() != -1) {
+            timeToLive = cacheControl.getSMaxAge();
+        } else if (cacheControl != null && cacheControl.getMaxAge() != -1) {
+            timeToLive = cacheControl.getMaxAge();
+        } else {
+            Instant expiresAt = ExpiresUtil.parseExpires(response.headers().getFirst(HttpHeaders.EXPIRES));
+            if (expiresAt != null) {
+                long expiresInSeconds = (expiresAt.toEpochMilli() - System.currentTimeMillis()) / 1000;
+                timeToLive = (expiresInSeconds < 0) ? -1 : expiresInSeconds;
             }
+        }
 
         return timeToLive;
     }
@@ -358,6 +381,6 @@ public class CachePolicy {
 
     private enum CacheAction {
         REFRESH,
-        BY_PASS
+        BY_PASS,
     }
 }

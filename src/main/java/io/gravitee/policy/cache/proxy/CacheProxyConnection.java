@@ -53,6 +53,7 @@ public class CacheProxyConnection implements ProxyConnection {
     }
 
     class CacheProxyResponse implements ProxyResponse {
+
         private Handler<Buffer> bodyHandler;
         private Handler<Void> endHandler;
 

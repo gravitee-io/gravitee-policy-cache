@@ -15,10 +15,9 @@
  */
 package io.gravitee.policy.cache.util;
 
+import java.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.time.Instant;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
