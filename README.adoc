@@ -29,6 +29,10 @@ Consumers can bypass the cache by adding a `cache=BY_PASS_` query parameter or b
 NOTE: If no cache resource is defined for the policy or it is not well configured, the API will not be deployed. The resource name is specified in the
 policy configuration `cacheName`, as described below.
 
+=== Policy identifier
+
+You can enable or disable the policy with policy identifier `cache`.
+
 == Configuration
 
 You can configure the policy with the following options:
