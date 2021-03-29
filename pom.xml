@@ -38,6 +38,7 @@
         <gravitee-gateway.version>3.7.0</gravitee-gateway.version>
         <gravitee-policy-api.version>1.10.0</gravitee-policy-api.version>
         <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
+        <gravitee-resource-cache-provider-api.version>1.0.0-SNAPSHOT</gravitee-resource-cache-provider-api.version>
         <gravitee-common.version>1.18.0</gravitee-common.version>
         <gravitee-resource-cache.version>1.5.0</gravitee-resource-cache.version>
         <jackson.version>2.10.3</jackson.version>
@@ -69,8 +70,8 @@
 
         <dependency>
             <groupId>io.gravitee.resource</groupId>
-            <artifactId>gravitee-resource-cache</artifactId>
-            <version>${gravitee-resource-cache.version}</version>
+            <artifactId>gravitee-resource-cache-provider-api</artifactId>
+            <version>${gravitee-resource-cache-provider-api.version}</version>
             <scope>provided</scope>
         </dependency>
 

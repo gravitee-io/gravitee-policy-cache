@@ -18,12 +18,8 @@ package io.gravitee.policy.cache;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.gravitee.common.http.HttpHeaders;
-import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
-import java.nio.charset.Charset;
 import java.util.HashMap;
 import org.junit.Assert;
 import org.junit.Before;

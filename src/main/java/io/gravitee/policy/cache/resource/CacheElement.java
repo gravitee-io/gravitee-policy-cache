@@ -15,7 +15,7 @@
  */
 package io.gravitee.policy.cache.resource;
 
-import io.gravitee.resource.cache.Element;
+import io.gravitee.resource.cache.api.Element;
 import java.io.Serializable;
 
 /**
