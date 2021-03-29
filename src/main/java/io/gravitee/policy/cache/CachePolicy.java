@@ -38,9 +38,9 @@ import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.policy.cache.util.CacheControlUtil;
 import io.gravitee.policy.cache.util.ExpiresUtil;
 import io.gravitee.resource.api.ResourceManager;
-import io.gravitee.resource.cache.Cache;
-import io.gravitee.resource.cache.CacheResource;
-import io.gravitee.resource.cache.Element;
+import io.gravitee.resource.cache.api.Cache;
+import io.gravitee.resource.cache.api.CacheResource;
+import io.gravitee.resource.cache.api.Element;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +81,7 @@ public class CachePolicy {
             if (request.method() == HttpMethod.GET || request.method() == HttpMethod.OPTIONS || request.method() == HttpMethod.HEAD) {
                 // It's safe to do so because a new instance of policy is created for each request.
                 String cacheName = cachePolicyConfiguration.getCacheName();
-                CacheResource cacheResource = executionContext
+                CacheResource<?> cacheResource = executionContext
                     .getComponent(ResourceManager.class)
                     .getResource(cacheName, CacheResource.class);
                 if (cacheResource == null) {
