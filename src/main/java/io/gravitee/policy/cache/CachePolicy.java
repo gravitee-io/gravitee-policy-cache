@@ -31,6 +31,7 @@ import io.gravitee.gateway.api.stream.ReadStream;
 import io.gravitee.policy.api.PolicyChain;
 import io.gravitee.policy.api.PolicyResult;
 import io.gravitee.policy.api.annotations.OnRequest;
+import io.gravitee.policy.api.annotations.RequireResource;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.policy.cache.proxy.CacheProxyConnection;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
  * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
+@RequireResource
 public class CachePolicy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CachePolicy.class);
