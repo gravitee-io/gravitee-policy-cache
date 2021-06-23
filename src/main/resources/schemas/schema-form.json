@@ -9,7 +9,7 @@
       "x-schema-form": {
         "event": {
           "name": "fetch-resources",
-          "regexTypes": "^cache$"
+          "regexTypes": "^cache"
         }
       }
     },
