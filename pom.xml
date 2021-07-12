@@ -38,7 +38,7 @@
         <gravitee-gateway.version>3.7.4</gravitee-gateway.version>
         <gravitee-policy-api.version>1.11.0</gravitee-policy-api.version>
         <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
-        <gravitee-resource-cache-provider-api.version>1.0.0</gravitee-resource-cache-provider-api.version>
+        <gravitee-resource-cache-provider-api.version>1.1.0-SNAPSHOT</gravitee-resource-cache-provider-api.version>
         <gravitee-common.version>1.18.0</gravitee-common.version>
         <gravitee-resource-cache.version>1.5.0</gravitee-resource-cache.version>
         <jackson.version>2.10.3</jackson.version>

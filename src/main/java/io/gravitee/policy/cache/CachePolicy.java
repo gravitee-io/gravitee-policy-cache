@@ -60,8 +60,6 @@ public class CachePolicy {
      */
     private final CachePolicyConfiguration cachePolicyConfiguration;
 
-    private static final char KEY_SEPARATOR = '_';
-
     // Policy cache action
     private static final String CACHE_ACTION_QUERY_PARAMETER = "cache";
     private static final String X_GRAVITEE_CACHE_ACTION = "X-Gravitee-Cache";
@@ -303,17 +301,21 @@ public class CachePolicy {
      */
     private String hash(ExecutionContext executionContext) {
         StringBuilder sb = new StringBuilder();
+        String cacheName = cachePolicyConfiguration.getCacheName();
+        CacheResource<?> cacheResource = executionContext.getComponent(ResourceManager.class).getResource(cacheName, CacheResource.class);
+        String keySeparator = cacheResource.keySeparator();
+
         switch (cachePolicyConfiguration.getScope()) {
             case APPLICATION:
-                sb.append(executionContext.getAttribute(ExecutionContext.ATTR_API)).append(KEY_SEPARATOR);
-                sb.append(executionContext.getAttribute(ExecutionContext.ATTR_APPLICATION)).append(KEY_SEPARATOR);
+                sb.append(executionContext.getAttribute(ExecutionContext.ATTR_API)).append(keySeparator);
+                sb.append(executionContext.getAttribute(ExecutionContext.ATTR_APPLICATION)).append(keySeparator);
                 break;
             case API:
-                sb.append(executionContext.getAttribute(ExecutionContext.ATTR_API)).append(KEY_SEPARATOR);
+                sb.append(executionContext.getAttribute(ExecutionContext.ATTR_API)).append(keySeparator);
                 break;
         }
 
-        sb.append(executionContext.request().path().hashCode()).append(KEY_SEPARATOR);
+        sb.append(executionContext.request().path().hashCode()).append(keySeparator);
 
         String key = cachePolicyConfiguration.getKey();
         if (key != null && !key.isEmpty()) {
