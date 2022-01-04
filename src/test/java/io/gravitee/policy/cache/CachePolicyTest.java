@@ -18,9 +18,9 @@ package io.gravitee.policy.cache;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import io.gravitee.common.http.HttpHeaders;
+import io.gravitee.gateway.api.http.HttpHeaderNames;
+import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
-import java.util.HashMap;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,15 +45,10 @@ public class CachePolicyTest {
 
     @Test
     public void should_usecachecontrol_smaxage() {
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setAll(
-            new HashMap<String, String>() {
-                {
-                    put(HttpHeaders.CACHE_CONTROL, "max-age=600, no-cache, no-store, smax-age=300");
-                    put(HttpHeaders.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
-                }
-            }
-        );
+        final HttpHeaders headers = HttpHeaders
+            .create()
+            .add(HttpHeaderNames.CACHE_CONTROL, "max-age=600, no-cache, no-store, smax-age=300")
+            .add(HttpHeaderNames.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
 
         when(response.headers()).thenReturn(headers);
 
@@ -63,15 +58,10 @@ public class CachePolicyTest {
 
     @Test
     public void should_usecachecontrol_maxage() {
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setAll(
-            new HashMap<String, String>() {
-                {
-                    put(HttpHeaders.CACHE_CONTROL, "max-age=600, no-cache, no-store");
-                    put(HttpHeaders.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
-                }
-            }
-        );
+        final HttpHeaders headers = HttpHeaders
+            .create()
+            .add(HttpHeaderNames.CACHE_CONTROL, "max-age=600, no-cache, no-store")
+            .add(HttpHeaderNames.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
 
         when(response.headers()).thenReturn(headers);
 
@@ -81,15 +71,10 @@ public class CachePolicyTest {
 
     @Test
     public void should_usecachecontrol_expires_past() {
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setAll(
-            new HashMap<String, String>() {
-                {
-                    put(HttpHeaders.CACHE_CONTROL, "no-cache, no-store");
-                    put(HttpHeaders.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
-                }
-            }
-        );
+        final HttpHeaders headers = HttpHeaders
+            .create()
+            .add(HttpHeaderNames.CACHE_CONTROL, "no-cache, no-store")
+            .add(HttpHeaderNames.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
 
         when(response.headers()).thenReturn(headers);
 
