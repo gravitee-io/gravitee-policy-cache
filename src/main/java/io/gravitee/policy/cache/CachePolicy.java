@@ -16,7 +16,6 @@
 package io.gravitee.policy.cache;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.ExecutionContext;
@@ -25,6 +24,8 @@ import io.gravitee.gateway.api.Request;
 import io.gravitee.gateway.api.Response;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.handler.Handler;
+import io.gravitee.gateway.api.http.HttpHeaderNames;
+import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyConnection;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
 import io.gravitee.gateway.api.stream.ReadStream;
@@ -45,6 +46,8 @@ import io.gravitee.resource.cache.api.Element;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import java.time.Instant;
+import java.util.Map;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -267,7 +270,10 @@ public class CachePolicy {
                         result -> {
                             endHandler.handle(result);
                             response.setStatus(proxyResponse.status());
-                            response.setHeaders(proxyResponse.headers());
+
+                            io.gravitee.common.http.HttpHeaders headers = new io.gravitee.common.http.HttpHeaders();
+                            proxyResponse.headers().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
+                            response.setHeaders(headers);
                             response.setContent(content);
                             Vertx vertx = executionContext.getComponent(Vertx.class);
                             vertx.executeBlocking(
@@ -370,14 +376,14 @@ public class CachePolicy {
 
     public static long timeToLiveFromResponse(ProxyResponse response) {
         long timeToLive = -1;
-        CacheControl cacheControl = CacheControlUtil.parseCacheControl(response.headers().getFirst(HttpHeaders.CACHE_CONTROL));
+        CacheControl cacheControl = CacheControlUtil.parseCacheControl(response.headers().getFirst(HttpHeaderNames.CACHE_CONTROL));
 
         if (cacheControl != null && cacheControl.getSMaxAge() != -1) {
             timeToLive = cacheControl.getSMaxAge();
         } else if (cacheControl != null && cacheControl.getMaxAge() != -1) {
             timeToLive = cacheControl.getMaxAge();
         } else {
-            Instant expiresAt = ExpiresUtil.parseExpires(response.headers().getFirst(HttpHeaders.EXPIRES));
+            Instant expiresAt = ExpiresUtil.parseExpires(response.headers().getFirst(HttpHeaderNames.EXPIRES));
             if (expiresAt != null) {
                 long expiresInSeconds = (expiresAt.toEpochMilli() - System.currentTimeMillis()) / 1000;
                 timeToLive = (expiresInSeconds < 0) ? -1 : expiresInSeconds;

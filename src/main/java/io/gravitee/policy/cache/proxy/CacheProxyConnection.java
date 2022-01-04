@@ -15,13 +15,15 @@
  */
 package io.gravitee.policy.cache.proxy;
 
-import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.handler.Handler;
+import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyConnection;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
 import io.gravitee.gateway.api.stream.ReadStream;
 import io.gravitee.policy.cache.CacheResponse;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
@@ -58,9 +60,15 @@ public class CacheProxyConnection implements ProxyConnection {
         private Handler<Void> endHandler;
 
         private final CacheResponse cacheResponse;
+        private final HttpHeaders httpHeaders = HttpHeaders.create();
 
         CacheProxyResponse(final CacheResponse cacheResponse) {
             this.cacheResponse = cacheResponse;
+            this.cacheResponse.getHeaders()
+                .forEach(
+                    (s, strings) ->
+                        httpHeaders.set(s, strings.stream().map((Function<String, CharSequence>) s1 -> s1).collect(Collectors.toList()))
+                );
         }
 
         @Override
@@ -70,7 +78,7 @@ public class CacheProxyConnection implements ProxyConnection {
 
         @Override
         public HttpHeaders headers() {
-            return cacheResponse.getHeaders();
+            return httpHeaders;
         }
 
         @Override
