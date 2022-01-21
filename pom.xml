@@ -34,7 +34,7 @@
     </parent>
 
     <properties>
-        <gravitee-gateway-api.version>1.31.0-SNAPSHOT</gravitee-gateway-api.version>
+        <gravitee-gateway-api.version>1.31.0</gravitee-gateway-api.version>
         <gravitee-gateway.version>3.7.4</gravitee-gateway.version>
         <gravitee-policy-api.version>1.11.0</gravitee-policy-api.version>
         <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
