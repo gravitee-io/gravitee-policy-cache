@@ -36,6 +36,7 @@ import io.gravitee.policy.api.annotations.RequireResource;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.policy.cache.proxy.CacheProxyConnection;
+import io.gravitee.policy.cache.proxy.EvaluableProxyResponse;
 import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.policy.cache.util.CacheControlUtil;
 import io.gravitee.policy.cache.util.ExpiresUtil;
@@ -65,6 +66,7 @@ public class CachePolicy {
      */
     private final CachePolicyConfiguration cachePolicyConfiguration;
 
+    public static final String UPSTREAM_RESPONSE = "upstreamResponse";
     // Policy cache action
     private static final String CACHE_ACTION_QUERY_PARAMETER = "cache";
     private static final String X_GRAVITEE_CACHE_ACTION = "X-Gravitee-Cache";
@@ -83,7 +85,7 @@ public class CachePolicy {
         action = lookForAction(request);
 
         if (action != CacheAction.BY_PASS) {
-            if (request.method() == HttpMethod.GET || request.method() == HttpMethod.OPTIONS || request.method() == HttpMethod.HEAD) {
+            if (isCachedMethod(request.method())) {
                 // It's safe to do so because a new instance of policy is created for each request.
                 String cacheName = cachePolicyConfiguration.getCacheName();
                 CacheResource<?> cacheResource = executionContext
@@ -100,11 +102,11 @@ public class CachePolicy {
                     return;
                 }
 
-                // Override the invoker for safe request to cache content (if required)
+                // Override the invoker
                 Invoker defaultInvoker = (Invoker) executionContext.getAttribute(ExecutionContext.ATTR_INVOKER);
                 executionContext.setAttribute(ExecutionContext.ATTR_INVOKER, new CacheInvoker(defaultInvoker));
             } else {
-                LOGGER.debug("Request {} is not a safe request, disable caching for it.", request.id());
+                LOGGER.debug("Request {} is not a cached request, disable caching for it.", request.id());
             }
         }
 
@@ -232,10 +234,23 @@ public class CachePolicy {
 
         @Override
         public void handle(ProxyResponse proxyResponse) {
-            if (proxyResponse.status() >= HttpStatusCode.OK_200 && proxyResponse.status() < HttpStatusCode.MULTIPLE_CHOICES_300) {
+            if (
+                cachePolicyConfiguration.getResponseCondition() != null &&
+                evaluate(executionContext, proxyResponse, cachePolicyConfiguration.getResponseCondition())
+            ) {
+                responseHandler.handle(new CacheProxyResponse(proxyResponse, cacheId));
+            } else if (
+                cachePolicyConfiguration.getResponseCondition() == null &&
+                proxyResponse.status() >= HttpStatusCode.OK_200 &&
+                proxyResponse.status() < HttpStatusCode.MULTIPLE_CHOICES_300
+            ) {
                 responseHandler.handle(new CacheProxyResponse(proxyResponse, cacheId));
             } else {
-                LOGGER.debug("Response for key {} not put in cache because of the status code {}", cacheId, proxyResponse.status());
+                LOGGER.debug(
+                    "Response for key {} not put in cache because of the status code {} or the condition",
+                    cacheId,
+                    proxyResponse.status()
+                );
                 responseHandler.handle(proxyResponse);
             }
         }
@@ -418,5 +433,26 @@ public class CachePolicy {
     private enum CacheAction {
         REFRESH,
         BY_PASS,
+    }
+
+    private boolean isCachedMethod(HttpMethod method) {
+        if (cachePolicyConfiguration.getMethods() == null || cachePolicyConfiguration.getMethods().isEmpty()) {
+            //use Safe Methods
+            return (method == HttpMethod.GET || method == HttpMethod.OPTIONS || method == HttpMethod.HEAD);
+        }
+        return cachePolicyConfiguration.getMethods().contains(method);
+    }
+
+    private boolean evaluate(final ExecutionContext context, final ProxyResponse proxyResponse, final String condition) {
+        if (condition != null && !condition.isEmpty()) {
+            try {
+                context.getTemplateEngine().getTemplateContext().setVariable(UPSTREAM_RESPONSE, new EvaluableProxyResponse(proxyResponse));
+                return context.getTemplateEngine().getValue(condition, Boolean.class);
+            } catch (Exception e) {
+                LOGGER.error("Unable to evaluate the condition {}", e.getMessage(), e);
+                return false;
+            }
+        }
+        return true;
     }
 }

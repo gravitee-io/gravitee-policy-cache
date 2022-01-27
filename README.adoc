@@ -19,16 +19,13 @@ endif::[]
 
 == Description
 
-You can use the `cache` policy to cache upstream responses (content, status and headers) to eliminate the need for subsequent calls to
-the back end.
+You can use the `cache` policy to cache upstream responses (content, status and headers) to eliminate the need for subsequent calls to the back end.
 
-This policy is based on a _cache resource_, which aligns the underlying cache system with the
-API lifecycle (stop / start).
+This policy is based on a _cache resource_, which aligns the underlying cache system with the API lifecycle (stop / start).
 
-Consumers can bypass the cache by adding a `cache=BY_PASS_` query parameter or by providing a
-`_X-Gravitee-Cache=BY_PASS_` HTTP header.
+Consumers can bypass the cache by adding a `cache=BY_PASS_` query parameter or by providing a `_X-Gravitee-Cache=BY_PASS_` HTTP header.
 
-NOTE: If no cache resource is defined for the policy or it is not well configured, the API will not be deployed. The resource name is specified in the
+NOTE: If no cache resource is defined for the policy, or it is not well configured, the API will not be deployed. The resource name is specified in the
 policy configuration `cacheName`, as described below.
 
 == Configuration
@@ -41,6 +38,8 @@ You can configure the policy with the following options:
 |cacheName|X|The cache resource used to store the element|string|
 |key||The key used to store the element (support EL)|string|
 |timeToLiveSeconds|X|Time to live of the element put in cache (Default to 10 minutes)|integer|600
+|methods|X|Select which method you want to cache|array of strings|[GET, OPTIONS, HEAD]
+|responseCondition||Add an extra condition (with Expression Language) based on the response to activate cache. For example use `{#upstreamResponse.status == 200}` to only cache 200 responses status. By default, all 2xx are cached.|string|
 |useResponseCacheHeaders||Time to live based on 'Cache-Control' and / or 'Expires' headers from backend response|boolean|false
 |scope|X|Cached response can be set for a single consumer (application) or for all applications.<br><strong>WARNING:</strong> Please be aware that by using an \"API\" scope, data will be shared between all consumers !|API / APPLICATION|APPLICATION
 
@@ -82,6 +81,8 @@ TIP: To learn more about the Gravitee Expression Language, see the *API Publishe
     "key": "{#request.params['productId']}",
     "timeToLiveSeconds": 600,
     "useResponseCacheHeaders": false,
-    "scope": "APPLICATION"
+    "scope": "APPLICATION",
+    "methods": ["POST"],
+    "responseCondition": "{#upstreamResponse.status == 201}"
 }
 ----
