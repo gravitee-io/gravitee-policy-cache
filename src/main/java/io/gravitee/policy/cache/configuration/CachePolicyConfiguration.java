@@ -15,7 +15,10 @@
  */
 package io.gravitee.policy.cache.configuration;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.gravitee.common.http.HttpMethod;
 import io.gravitee.policy.api.PolicyConfiguration;
+import java.util.List;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
@@ -28,6 +31,12 @@ public class CachePolicyConfiguration implements PolicyConfiguration {
     private String key;
 
     private CacheScope scope = CacheScope.APPLICATION;
+
+    @JsonProperty("methods")
+    private List<HttpMethod> methods;
+
+    @JsonProperty("responseCondition")
+    private String responseCondition;
 
     // Default to 10 minutes
     private long timeToLiveSeconds = 600;
@@ -72,5 +81,21 @@ public class CachePolicyConfiguration implements PolicyConfiguration {
 
     public void setUseResponseCacheHeaders(boolean useResponseCacheHeaders) {
         this.useResponseCacheHeaders = useResponseCacheHeaders;
+    }
+
+    public List<HttpMethod> getMethods() {
+        return methods;
+    }
+
+    public void setMethods(List<HttpMethod> methods) {
+        this.methods = methods;
+    }
+
+    public String getResponseCondition() {
+        return responseCondition;
+    }
+
+    public void setResponseCondition(String responseCondition) {
+        this.responseCondition = responseCondition;
     }
 }
