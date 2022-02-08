@@ -43,6 +43,9 @@
         <gravitee-resource-cache.version>1.5.0</gravitee-resource-cache.version>
         <jackson.version>2.10.3</jackson.version>
         <maven-assembly-plugin.version>2.5.5</maven-assembly-plugin.version>
+
+        <!-- Property used by the publication job in CI-->
+        <publish-folder-path>graviteeio-apim/plugins/policies</publish-folder-path>
     </properties>
 
     <dependencies>
