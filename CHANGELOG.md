@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.14.0...1.15.0) (2022-02-08)
+
+
+### Features
+
+* choose the method to cache and add a response condition ([175a21e](https://github.com/gravitee-io/gravitee-policy-cache/commit/175a21ebba83c9cb4c42e4d44dc3a4b2f6f97aa8)), closes [gravitee-io/issues#6980](https://github.com/gravitee-io/issues/issues/6980)
+
 # [1.14.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.13.0...1.14.0) (2022-01-21)
 
 
