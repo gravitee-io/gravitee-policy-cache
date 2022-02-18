@@ -25,6 +25,7 @@ import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.buffer.BufferFactory;
 import io.gravitee.gateway.buffer.netty.BufferFactoryImpl;
 import java.io.IOException;
+import java.util.Base64;
 
 /**
  * @author Guillaume CUSNIEUX (guillaume.cusnieux at graviteesource.com)
@@ -58,7 +59,7 @@ public class CacheResponseMapper extends ObjectMapper {
         public Buffer deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
             JsonNode node = p.getCodec().readTree(p);
             if (node.has("buffer")) {
-                return factory.buffer(node.get("buffer").asText());
+                return factory.buffer(Base64.getDecoder().decode(node.get("buffer").asText()));
             }
             return null;
         }
@@ -69,7 +70,7 @@ public class CacheResponseMapper extends ObjectMapper {
         @Override
         public void serialize(Buffer value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
             gen.writeStartObject();
-            gen.writeStringField("buffer", value.toString());
+            gen.writeStringField("buffer", Base64.getEncoder().encodeToString(value.getBytes()));
             gen.writeEndObject();
         }
     }
