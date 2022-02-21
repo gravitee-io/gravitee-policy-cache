@@ -15,7 +15,6 @@
  */
 package io.gravitee.policy.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.ExecutionContext;
@@ -34,7 +33,6 @@ import io.gravitee.policy.api.PolicyResult;
 import io.gravitee.policy.api.annotations.OnRequest;
 import io.gravitee.policy.api.annotations.RequireResource;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.policy.cache.proxy.CacheProxyConnection;
 import io.gravitee.policy.cache.proxy.EvaluableProxyResponse;
 import io.gravitee.policy.cache.resource.CacheElement;
@@ -46,9 +44,8 @@ import io.gravitee.resource.cache.api.CacheResource;
 import io.gravitee.resource.cache.api.Element;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
+import java.io.IOException;
 import java.time.Instant;
-import java.util.Map;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,8 +70,6 @@ public class CachePolicy {
 
     private Cache cache;
     private CacheAction action;
-
-    private CacheResponseMapper mapper = new CacheResponseMapper();
 
     public CachePolicy(final CachePolicyConfiguration cachePolicyConfiguration) {
         this.cachePolicyConfiguration = cachePolicyConfiguration;
@@ -145,7 +140,7 @@ public class CachePolicy {
 
                             try {
                                 final ProxyConnection proxyConnection = new CacheProxyConnection(
-                                    mapper.readValue(elt.value().toString(), CacheResponse.class)
+                                    CacheResponseSerializable.deserialize((CacheResponseSerializable) elt.value())
                                 );
 
                                 // Ok, there is a value for this request in cache so send it through proxy connection
@@ -153,7 +148,7 @@ public class CachePolicy {
 
                                 // Plug underlying stream to connection stream
                                 stream.bodyHandler(proxyConnection::write).endHandler(aVoid -> proxyConnection.end());
-                            } catch (JsonProcessingException e) {
+                            } catch (IOException | ClassNotFoundException e) {
                                 LOGGER.error(
                                     "Cannot deserialize element with key {}, invoke backend with invoker {}",
                                     cacheId,
@@ -302,10 +297,10 @@ public class CachePolicy {
                                     }
 
                                     try {
-                                        CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
+                                        CacheElement element = new CacheElement(cacheId, CacheResponseSerializable.serialize(response));
                                         element.setTimeToLive((int) timeToLive);
                                         cache.put(element);
-                                    } catch (JsonProcessingException e) {
+                                    } catch (IOException e) {
                                         LOGGER.error("Cannot serialize element with key {}", cacheId);
                                     }
                                     promise.complete();

@@ -22,7 +22,7 @@ import io.gravitee.gateway.api.buffer.Buffer;
  * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
-public class CacheResponse {
+public class CacheResponse extends AbstractCacheResponse<HttpHeaders, Buffer> {
 
     private int status;
 

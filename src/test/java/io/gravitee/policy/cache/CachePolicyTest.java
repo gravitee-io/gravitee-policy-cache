@@ -15,8 +15,7 @@
  */
 package io.gravitee.policy.cache;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.MockitoAnnotations.initMocks;
 
@@ -27,6 +26,7 @@ import io.gravitee.el.TemplateEngine;
 import io.gravitee.gateway.api.ExecutionContext;
 import io.gravitee.gateway.api.Request;
 import io.gravitee.gateway.api.Response;
+import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.http.HttpHeaderNames;
 import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
@@ -35,6 +35,9 @@ import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Before;
@@ -270,5 +273,30 @@ public class CachePolicyTest {
         );
 
         assertFalse(evaluate);
+    }
+
+    @Test
+    public void shouldSerializeCacheResponse() throws IOException, ClassNotFoundException {
+        CacheResponse cacheResponse = new CacheResponse();
+        cacheResponse.setStatus(500);
+        cacheResponse.setContent(Buffer.buffer("foobar"));
+        io.gravitee.common.http.HttpHeaders headers = new io.gravitee.common.http.HttpHeaders();
+        headers.put("Content-Type", Arrays.asList("application/json"));
+        cacheResponse.setHeaders(headers);
+        CacheResponseSerializable cacheResponseSerializable = CacheResponseSerializable.serialize(cacheResponse);
+        assertNotNull(cacheResponseSerializable);
+        assertNotNull(cacheResponseSerializable.getHeaders());
+        assertNotNull(cacheResponseSerializable.getContent());
+
+        CacheResponse cacheResponseDeserializable = CacheResponseSerializable.deserialize(cacheResponseSerializable);
+
+        assertNotNull(cacheResponseDeserializable);
+        assertEquals(cacheResponseDeserializable.getStatus(), cacheResponse.getStatus());
+        assertEquals(cacheResponseDeserializable.getContent().toString(), "foobar");
+        assertTrue(cacheResponseDeserializable.getHeaders() instanceof Serializable);
+        assertEquals(
+            cacheResponseDeserializable.getHeaders().toSingleValueMap().toString(),
+            cacheResponse.getHeaders().toSingleValueMap().toString()
+        );
     }
 }
