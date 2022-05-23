@@ -30,11 +30,12 @@
     <parent>
         <groupId>io.gravitee</groupId>
         <artifactId>gravitee-parent</artifactId>
-        <version>19.2.1</version>
+        <version>20.1</version>
     </parent>
 
     <properties>
-        <gravitee-gateway-api.version>1.31.0</gravitee-gateway-api.version>
+        <gravitee-bom.version>2.5</gravitee-bom.version>
+        <gravitee-gateway-api.version>1.32.2</gravitee-gateway-api.version>
         <gravitee-gateway.version>3.7.4</gravitee-gateway.version>
         <gravitee-policy-api.version>1.11.0</gravitee-policy-api.version>
         <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
@@ -43,9 +44,31 @@
         <gravitee-resource-cache.version>1.5.0</gravitee-resource-cache.version>
         <jackson.version>2.10.3</jackson.version>
         <maven-assembly-plugin.version>2.5.5</maven-assembly-plugin.version>
+        <junit-jupiter.version>5.8.2</junit-jupiter.version>
         <!-- Property used by the publication job in CI-->
         <publish-folder-path>graviteeio-apim/plugins/policies</publish-folder-path>
+        <gravitee-apim-gateway-tests-sdk.version>3.18.0-SNAPSHOT</gravitee-apim-gateway-tests-sdk.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Import bom to properly inherit all dependencies -->
+            <dependency>
+                <groupId>io.gravitee</groupId>
+                <artifactId>gravitee-bom</artifactId>
+                <version>${gravitee-bom.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Provided scope -->
@@ -113,8 +136,8 @@
 
         <!-- Test scope -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -126,7 +149,13 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
-            <version>${spring.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.gravitee.apim.gateway</groupId>
+            <artifactId>gravitee-apim-gateway-tests-sdk</artifactId>
+            <version>${gravitee-apim-gateway-tests-sdk.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
