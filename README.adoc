@@ -28,6 +28,14 @@ Consumers can bypass the cache by adding a `cache=BY_PASS_` query parameter or b
 NOTE: If no cache resource is defined for the policy, or it is not well configured, the API will not be deployed. The resource name is specified in the
 policy configuration `cacheName`, as described below.
 
+== Compatibility with APIM
+
+|===
+| Plugin version | APIM version
+
+| Up to 1.x                   | All
+|===
+
 == Configuration
 
 You can configure the policy with the following options:
