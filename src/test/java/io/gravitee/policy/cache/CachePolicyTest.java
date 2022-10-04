@@ -15,13 +15,12 @@
  */
 package io.gravitee.policy.cache;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.util.LinkedMultiValueMap;
+import io.gravitee.common.util.MultiValueMap;
 import io.gravitee.el.TemplateContext;
 import io.gravitee.el.TemplateEngine;
 import io.gravitee.gateway.api.ExecutionContext;
@@ -32,6 +31,7 @@ import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
 import io.gravitee.policy.api.PolicyChain;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
+import io.gravitee.policy.cache.configuration.CacheScope;
 import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
@@ -42,6 +42,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -72,7 +73,7 @@ public class CachePolicyTest {
 
     @Before
     public void init() {
-        initMocks(this);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
@@ -270,5 +271,42 @@ public class CachePolicyTest {
         );
 
         assertFalse(evaluate);
+    }
+
+    @Test
+    public void shouldHashKeyUsingQueryParametersInAnyOrder() {
+        final CachePolicy cachePolicy = new CachePolicy(cachePolicyConfiguration);
+        final MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
+
+        ResourceManager resourceManager = mock(ResourceManager.class);
+        when(executionContext.getComponent(ResourceManager.class)).thenReturn(resourceManager);
+        when(resourceManager.getResource(any(), eq(CacheResource.class))).thenReturn(mock(CacheResource.class));
+        when(cachePolicyConfiguration.getScope()).thenReturn(CacheScope.API);
+        when(executionContext.request()).thenReturn(request);
+        when(request.path()).thenReturn("/test");
+        when(request.parameters()).thenReturn(queryParams);
+
+        queryParams.add("foo", "a");
+        queryParams.add("foo", "b");
+        queryParams.add("bar", "c");
+        queryParams.add("bar", "d");
+
+        String hash1 = cachePolicy.hash(executionContext);
+
+        queryParams.clear();
+        queryParams.add("bar", "d");
+        queryParams.add("bar", "c");
+        queryParams.add("foo", "b");
+        queryParams.add("foo", "a");
+
+        String hash2 = cachePolicy.hash(executionContext);
+
+        assertEquals(hash1, hash2);
+
+        queryParams.clear();
+
+        String hash3 = cachePolicy.hash(executionContext);
+
+        assertNotEquals(hash2, hash3);
     }
 }
