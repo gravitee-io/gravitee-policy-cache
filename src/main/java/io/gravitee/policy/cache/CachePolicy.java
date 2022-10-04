@@ -47,8 +47,11 @@ import io.gravitee.resource.cache.api.Element;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -346,7 +349,7 @@ public class CachePolicy {
      * @param executionContext
      * @return
      */
-    private String hash(ExecutionContext executionContext) {
+    String hash(ExecutionContext executionContext) {
         StringBuilder sb = new StringBuilder();
         String cacheName = cachePolicyConfiguration.getCacheName();
         CacheResource<?> cacheResource = executionContext.getComponent(ResourceManager.class).getResource(cacheName, CacheResource.class);
@@ -363,6 +366,7 @@ public class CachePolicy {
         }
 
         sb.append(executionContext.request().path().hashCode()).append(keySeparator);
+        sb.append(buildParametersKeyComponent(executionContext.request())).append(keySeparator);
 
         String key = cachePolicyConfiguration.getKey();
         if (key != null && !key.isEmpty()) {
@@ -374,6 +378,18 @@ public class CachePolicy {
         }
 
         return sb.toString();
+    }
+
+    private int buildParametersKeyComponent(Request request) {
+        return request
+            .parameters()
+            .entrySet()
+            .stream()
+            .sorted(Map.Entry.comparingByKey())
+            .peek(entry -> Collections.sort(entry.getValue()))
+            .map(Map.Entry::toString)
+            .collect(Collectors.joining())
+            .hashCode();
     }
 
     public long resolveTimeToLive(ProxyResponse response) {
