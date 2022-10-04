@@ -34,11 +34,11 @@
     </parent>
 
     <properties>
-        <gravitee-apim-gateway-tests-sdk.version>3.18.0-SNAPSHOT</gravitee-apim-gateway-tests-sdk.version>
+        <gravitee-apim-gateway-tests-sdk.version>3.18.10</gravitee-apim-gateway-tests-sdk.version>
         <gravitee-bom.version>2.5</gravitee-bom.version>
         <gravitee-common.version>1.26.1</gravitee-common.version>
-        <gravitee-apim-gateway.version>3.17.3</gravitee-apim-gateway.version>
-        <gravitee-gateway-api.version>1.32.2</gravitee-gateway-api.version>
+        <gravitee-apim-gateway.version>3.18.10</gravitee-apim-gateway.version>
+        <gravitee-gateway-api.version>1.34.2</gravitee-gateway-api.version>
         <gravitee-policy-api.version>1.11.0</gravitee-policy-api.version>
         <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
         <gravitee-resource-cache-provider-api.version>1.1.0</gravitee-resource-cache-provider-api.version>
@@ -101,6 +101,13 @@
         <dependency>
             <groupId>io.gravitee.apim.gateway</groupId>
             <artifactId>gravitee-apim-gateway-buffer</artifactId>
+            <version>${gravitee-apim-gateway.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.gravitee.apim.gateway</groupId>
+            <artifactId>gravitee-apim-gateway-reactor</artifactId>
             <version>${gravitee-apim-gateway.version}</version>
             <scope>provided</scope>
         </dependency>
