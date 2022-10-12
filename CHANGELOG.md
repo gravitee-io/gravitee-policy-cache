@@ -1,3 +1,10 @@
+## [1.15.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.15.1...1.15.2) (2022-10-12)
+
+
+### Bug Fixes
+
+* use query parameters when hashing cache key ([d959fc4](https://github.com/gravitee-io/gravitee-policy-cache/commit/d959fc446d30c79ce55fc1658bbe56d203c6e904))
+
 ## [1.15.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.15.0...1.15.1) (2022-04-28)
 
 
