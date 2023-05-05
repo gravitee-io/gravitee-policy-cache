@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.15.2...1.16.0) (2023-05-05)
+
+
+### Features
+
+* introduce a binary serialization mode to deal with encoding issue ([1282e8e](https://github.com/gravitee-io/gravitee-policy-cache/commit/1282e8e0abfa88c4eae0be9017986c07de1c306b))
+
 ## [1.15.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.15.1...1.15.2) (2022-10-12)
 
 
