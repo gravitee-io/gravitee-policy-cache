@@ -94,3 +94,19 @@ TIP: To learn more about the Gravitee Expression Language, see the *API Publishe
     "responseCondition": "{#upstreamResponse.status == 201}"
 }
 ----
+
+
+=== Gateway configuration (gravitee.yml)
+
+WARNING: The `binary` serialization format is not compatible with the Redis cache resource.
+
+[source, yaml]
+----
+  policy:
+    cache:
+      serialization: text # default value or "binary" (not compatible with Redis)
+----
+
+The `policy.cache.serialization` allow to configure the serialization format of the cache.
+
+The default value is `text` but you can also use `binary` to use a binary serialization format (not compatible with Redis).
