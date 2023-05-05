@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.buffer.BufferFactory;
 import io.gravitee.gateway.buffer.netty.BufferFactoryImpl;
+import io.gravitee.policy.cache.configuration.SerializationMode;
 import java.io.IOException;
 
 /**
@@ -32,6 +33,8 @@ import java.io.IOException;
  */
 public class CacheResponseMapper extends ObjectMapper {
 
+    private SerializationMode serializationMode = null;
+
     public CacheResponseMapper() {
         registerModule(new BufferModule());
 
@@ -39,6 +42,14 @@ public class CacheResponseMapper extends ObjectMapper {
         enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }
+
+    public void setSerializationMode(SerializationMode serializationMode) {
+        this.serializationMode = serializationMode;
+    }
+
+    public boolean isSerializationModeDefined() {
+        return serializationMode != null;
     }
 
     public class BufferModule extends SimpleModule {
@@ -58,7 +69,13 @@ public class CacheResponseMapper extends ObjectMapper {
         public Buffer deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
             JsonNode node = p.getCodec().readTree(p);
             if (node.has("buffer")) {
-                return factory.buffer(node.get("buffer").asText());
+                if (serializationMode == SerializationMode.TEXT) {
+                    return factory.buffer(node.get("buffer").textValue());
+                } else if (serializationMode == SerializationMode.BINARY) {
+                    return factory.buffer(node.get("buffer").binaryValue());
+                } else {
+                    throw new IllegalStateException("Serialization mode is not defined");
+                }
             }
             return null;
         }
@@ -69,7 +86,13 @@ public class CacheResponseMapper extends ObjectMapper {
         @Override
         public void serialize(Buffer value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
             gen.writeStartObject();
-            gen.writeStringField("buffer", value.toString());
+            if (serializationMode == SerializationMode.TEXT) {
+                gen.writeStringField("buffer", value.toString());
+            } else if (serializationMode == SerializationMode.BINARY) {
+                gen.writeBinaryField("buffer", value.getBytes());
+            } else {
+                throw new IllegalStateException("Serialization mode is not defined");
+            }
             gen.writeEndObject();
         }
     }

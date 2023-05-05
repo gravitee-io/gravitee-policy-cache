@@ -34,6 +34,7 @@ import io.gravitee.policy.api.PolicyResult;
 import io.gravitee.policy.api.annotations.OnRequest;
 import io.gravitee.policy.api.annotations.RequireResource;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
+import io.gravitee.policy.cache.configuration.SerializationMode;
 import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.policy.cache.proxy.CacheProxyConnection;
 import io.gravitee.policy.cache.proxy.EvaluableProxyResponse;
@@ -48,12 +49,11 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
@@ -63,6 +63,8 @@ import org.slf4j.LoggerFactory;
 public class CachePolicy {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CachePolicy.class);
+
+    private static final String CACHE_SERIALIZATION_MODE_KEY = "policy.cache.serialization";
 
     /**
      * Cache policy configuration
@@ -85,6 +87,8 @@ public class CachePolicy {
 
     @OnRequest
     public void onRequest(Request request, Response response, ExecutionContext executionContext, PolicyChain policyChain) {
+        setMapperSerializationMode(executionContext);
+
         action = lookForAction(request);
 
         if (action != CacheAction.BY_PASS) {
@@ -470,5 +474,15 @@ public class CachePolicy {
             }
         }
         return true;
+    }
+
+    private void setMapperSerializationMode(ExecutionContext context) {
+        if (mapper.isSerializationModeDefined()) {
+            return;
+        }
+
+        Environment environment = context.getComponent(Environment.class);
+        String serializationModeAsString = environment.getProperty(CACHE_SERIALIZATION_MODE_KEY, SerializationMode.TEXT.name());
+        mapper.setSerializationMode(SerializationMode.valueOf(serializationModeAsString.toUpperCase()));
     }
 }

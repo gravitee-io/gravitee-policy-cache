@@ -20,25 +20,25 @@ import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.gateway.api.buffer.BufferFactory;
 import io.gravitee.gateway.buffer.netty.BufferFactoryImpl;
 import io.gravitee.policy.cache.CacheResponse;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import io.gravitee.policy.cache.configuration.SerializationMode;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * @author Guillaume CUSNIEUX (guillaume.cusnieux at graviteesource.com)
  * @author GraviteeSource Team
  */
-@RunWith(MockitoJUnitRunner.class)
-public class CacheResponseMapperTest {
+class CacheResponseMapperTest {
 
     CacheResponseMapper cacheResponseMapper = new CacheResponseMapper();
     BufferFactory factory = new BufferFactoryImpl();
     CacheResponse cacheResponse = new CacheResponse();
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.set("Authentication", "Bearer: hackathon");
         httpHeaders.set("Content-Type", "application/json");
@@ -48,10 +48,12 @@ public class CacheResponseMapperTest {
     }
 
     @Test
-    public void shouldSerialize() throws JsonProcessingException {
+    void shouldSerialize() throws JsonProcessingException {
+        cacheResponseMapper.setSerializationMode(SerializationMode.TEXT);
+
         String responseAsString = cacheResponseMapper.writeValueAsString(cacheResponse);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
             responseAsString,
             "{\n" +
             "  \"status\" : 200,\n" +
@@ -67,7 +69,9 @@ public class CacheResponseMapperTest {
     }
 
     @Test
-    public void shouldDeserialize() throws JsonProcessingException {
+    void shouldDeserialize() throws JsonProcessingException {
+        cacheResponseMapper.setSerializationMode(SerializationMode.TEXT);
+
         CacheResponse response = cacheResponseMapper.readValue(
             "{\n" +
             "  \"status\" : 200,\n" +
@@ -82,8 +86,21 @@ public class CacheResponseMapperTest {
             CacheResponse.class
         );
 
-        Assert.assertEquals(response.getContent().toString(), cacheResponse.getContent().toString());
-        Assert.assertEquals(response.getHeaders(), cacheResponse.getHeaders());
-        Assert.assertEquals(response.getStatus(), cacheResponse.getStatus());
+        Assertions.assertEquals(response.getContent().toString(), cacheResponse.getContent().toString());
+        Assertions.assertEquals(response.getHeaders(), cacheResponse.getHeaders());
+        Assertions.assertEquals(response.getStatus(), cacheResponse.getStatus());
+    }
+
+    @ParameterizedTest
+    @EnumSource(SerializationMode.class)
+    void shouldReturnSameDataAsCacheInput(SerializationMode serializationMode) throws JsonProcessingException {
+        cacheResponseMapper.setSerializationMode(serializationMode);
+
+        String responseAsString = cacheResponseMapper.writeValueAsString(cacheResponse);
+        CacheResponse response = cacheResponseMapper.readValue(responseAsString, CacheResponse.class);
+
+        Assertions.assertEquals(response.getContent().toString(), cacheResponse.getContent().toString());
+        Assertions.assertEquals(response.getHeaders(), cacheResponse.getHeaders());
+        Assertions.assertEquals(response.getStatus(), cacheResponse.getStatus());
     }
 }
