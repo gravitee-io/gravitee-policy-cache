@@ -1,0 +1,76 @@
+{
+  "id": "apiv4-cache-policy",
+  "name": "apiv4-cache-policy",
+  "description": "apiv4-cache-policy",
+  "definitionVersion": "4.0.0",
+  "type": "proxy",
+  "listeners": [
+    {
+      "type": "http",
+      "paths": [
+        {
+          "path": "/test"
+        }
+      ],
+      "entrypoints": [
+        {
+          "type": "http-proxy"
+        }
+      ]
+    }
+  ],
+  "endpointGroups": [
+    {
+      "name": "default",
+      "type": "http-proxy",
+      "endpoints": [
+        {
+          "name": "default-endpoint",
+          "type": "http-proxy",
+          "configuration": {
+            "target": "http://localhost:8080/endpoint"
+          }
+        }
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "name": "cache-flow",
+      "enabled": true,
+      "selectors": [
+        {
+          "type": "http",
+          "path": "/",
+          "pathOperator": "STARTS_WITH"
+        }
+      ],
+      "request": [
+        {
+          "name": "Cache",
+          "description": "test cache policy with V4 API",
+          "enabled": true,
+          "policy": "cache",
+          "configuration": {
+            "scope": "API",
+            "cacheName": "dummy-cache",
+            "key": "integration-test-cache",
+            "methods": ["GET"]
+          }
+        }
+      ],
+      "response": [],
+      "subscribe": [],
+      "publish": []
+    }
+  ],
+  "resources": [
+    {
+      "name": "dummy-cache",
+      "enabled": true,
+      "type": "dummy-cache",
+      "configuration": {
+      }
+    }
+  ]
+}

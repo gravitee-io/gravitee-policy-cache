@@ -24,6 +24,7 @@ import io.gravitee.resource.cache.api.CacheResource;
 import io.gravitee.resource.cache.api.Element;
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,18 +34,29 @@ import org.slf4j.LoggerFactory;
  */
 public class DummyCacheResource extends CacheResource {
 
-    private Cache instance;
+    private static Cache instance;
 
     @Override
     public Cache getCache(ExecutionContext executionContext) {
         return getDummyCacheInstance();
     }
 
-    private Cache getDummyCacheInstance() {
+    private static Cache getDummyCacheInstance() {
         if (instance == null) {
             instance = new DummyCache();
         }
         return instance;
+    }
+
+    public static void clearCache() {
+        getDummyCacheInstance().clear();
+    }
+
+    public static void checkNumberOfCacheEntries(int expectedSize) {
+        try {
+            Thread.sleep(2000);
+        } catch (Exception e) {}
+        Assertions.assertEquals(expectedSize, ((Map) getDummyCacheInstance().getNativeCache()).size());
     }
 
     @Override
