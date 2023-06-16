@@ -16,6 +16,7 @@
 package io.gravitee.policy.cache;
 
 import io.gravitee.gateway.api.ExecutionContext;
+import io.gravitee.gateway.reactive.api.context.GenericExecutionContext;
 import io.gravitee.resource.api.AbstractResource;
 import io.gravitee.resource.api.Resource;
 import io.gravitee.resource.cache.api.Cache;
@@ -36,10 +37,19 @@ public class DummyCacheResource extends CacheResource {
 
     @Override
     public Cache getCache(ExecutionContext executionContext) {
+        return getDummyCacheInstance();
+    }
+
+    private Cache getDummyCacheInstance() {
         if (instance == null) {
             instance = new DummyCache();
         }
         return instance;
+    }
+
+    @Override
+    public Cache getCache(GenericExecutionContext genericExecutionContext) {
+        return getDummyCacheInstance();
     }
 
     @Override

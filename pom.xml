@@ -30,20 +30,20 @@
     <parent>
         <groupId>io.gravitee</groupId>
         <artifactId>gravitee-parent</artifactId>
-        <version>20.2</version>
+        <version>21.0.0</version>
     </parent>
 
     <properties>
-        <gravitee-apim-gateway-tests-sdk.version>3.18.10</gravitee-apim-gateway-tests-sdk.version>
-        <gravitee-bom.version>2.5</gravitee-bom.version>
+        <gravitee-apim-gateway-tests-sdk.version>4.0.0-SNAPSHOT</gravitee-apim-gateway-tests-sdk.version>
+        <gravitee-bom.version>5.0.0</gravitee-bom.version>
         <gravitee-common.version>1.26.1</gravitee-common.version>
-        <gravitee-apim-gateway.version>3.18.10</gravitee-apim-gateway.version>
-        <gravitee-gateway-api.version>1.34.2</gravitee-gateway-api.version>
+        <gravitee-apim-gateway.version>4.0.0-SNAPSHOT</gravitee-apim-gateway.version>
+        <gravitee-gateway-api.version>3.0.0-alpha.6</gravitee-gateway-api.version>
         <gravitee-policy-api.version>1.11.0</gravitee-policy-api.version>
         <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
-        <gravitee-resource-cache-provider-api.version>1.1.0</gravitee-resource-cache-provider-api.version>
+        <gravitee-resource-cache-provider-api.version>1.4.0</gravitee-resource-cache-provider-api.version>
 
-        <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
+        <maven-assembly-plugin.version>3.6.0</maven-assembly-plugin.version>
         <!-- Property used by the publication job in CI-->
         <publish-folder-path>graviteeio-apim/plugins/policies</publish-folder-path>
     </properties>

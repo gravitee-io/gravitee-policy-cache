@@ -27,10 +27,13 @@ import io.gravitee.apim.gateway.tests.sdk.annotations.GatewayTest;
 import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
 import io.gravitee.plugin.resource.ResourcePlugin;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.reactivex.observers.TestObserver;
-import io.vertx.reactivex.core.buffer.Buffer;
-import io.vertx.reactivex.ext.web.client.HttpResponse;
-import io.vertx.reactivex.ext.web.client.WebClient;
+import io.reactivex.rxjava3.observers.TestObserver;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.rxjava3.core.buffer.Buffer;
+import io.vertx.rxjava3.core.http.HttpClient;
+import io.vertx.rxjava3.ext.web.client.HttpResponse;
+import io.vertx.rxjava3.ext.web.client.WebClient;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
@@ -51,18 +54,26 @@ class CachePolicyIntegrationTest extends AbstractPolicyTest<CachePolicy, CachePo
 
     @Test
     @DisplayName("Should invoke cache instead of backend when doing the same call twice")
-    void shouldUseCache(WebClient client) throws Exception {
+    void shouldUseCache(HttpClient client) throws Exception {
         wiremock.stubFor(get("/endpoint").willReturn(ok("response from backend")));
 
-        final TestObserver<HttpResponse<Buffer>> obs = client.get("/test").rxSend().test();
+        final var obs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(request -> request.rxSend())
+            .flatMapPublisher(
+                response -> {
+                    assertThat(response.statusCode()).isEqualTo(200);
+                    return response.toFlowable();
+                }
+            )
+            .test();
 
-        awaitTerminalEvent(obs);
+        obs.await(30000, TimeUnit.MILLISECONDS);
         obs
             .assertComplete()
             .assertValue(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    assertThat(response.bodyAsString()).isEqualTo("response from backend");
+                buffer -> {
+                    assertThat(buffer.toString()).isEqualTo("response from backend");
                     return true;
                 }
             )
@@ -72,15 +83,23 @@ class CachePolicyIntegrationTest extends AbstractPolicyTest<CachePolicy, CachePo
 
         wiremock.stubFor(get("/endpoint").willReturn(ok("response from backend modified")));
 
-        final TestObserver<HttpResponse<Buffer>> secondObs = client.get("/test").rxSend().test();
+        final var secondObs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(request -> request.rxSend())
+            .flatMapPublisher(
+                response -> {
+                    assertThat(response.statusCode()).isEqualTo(200);
+                    return response.toFlowable();
+                }
+            )
+            .test();
 
-        secondObs.awaitTerminalEvent(1000, TimeUnit.MILLISECONDS);
+        secondObs.await(1000, TimeUnit.MILLISECONDS);
         secondObs
             .assertComplete()
             .assertValue(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    assertThat(response.bodyAsString()).isEqualTo("response from backend");
+                buffer -> {
+                    assertThat(buffer.toString()).isEqualTo("response from backend");
                     return true;
                 }
             )
