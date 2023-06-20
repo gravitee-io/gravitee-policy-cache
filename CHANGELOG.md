@@ -1,3 +1,15 @@
+# [2.0.0-alpha.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.16.0...2.0.0-alpha.1) (2023-06-20)
+
+
+### Features
+
+* Make cache policy compatible wit V4 API ([38023b2](https://github.com/gravitee-io/gravitee-policy-cache/commit/38023b237dbf67553f0ad2cb3be0e0a5c24a7770))
+
+
+### BREAKING CHANGES
+
+* This implementation is using the dependencies introduced by Gravitee V4.0
+
 # [1.16.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.15.2...1.16.0) (2023-05-05)
 
 
