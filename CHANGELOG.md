@@ -1,3 +1,10 @@
+# [2.0.0-alpha.3](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.0-alpha.2...2.0.0-alpha.3) (2023-06-30)
+
+
+### Features
+
+* improve special resource type ui component to make it generic ([a140685](https://github.com/gravitee-io/gravitee-policy-cache/commit/a14068540d1903f739fcc8715830cbd63f822563))
+
 # [2.0.0-alpha.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.0-alpha.1...2.0.0-alpha.2) (2023-06-27)
 
 
