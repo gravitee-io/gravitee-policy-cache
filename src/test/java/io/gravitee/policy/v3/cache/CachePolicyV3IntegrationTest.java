@@ -15,32 +15,15 @@
  */
 package io.gravitee.policy.v3.cache;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.ok;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-
-import io.gravitee.apim.gateway.tests.sdk.AbstractPolicyTest;
 import io.gravitee.apim.gateway.tests.sdk.annotations.DeployApi;
 import io.gravitee.apim.gateway.tests.sdk.annotations.GatewayTest;
-import io.gravitee.apim.gateway.tests.sdk.configuration.GatewayMode;
-import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
-import io.gravitee.plugin.resource.ResourcePlugin;
-import io.gravitee.policy.cache.CachePolicyIntegrationTest;
-import io.gravitee.policy.cache.DummyCacheResource;
-import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.rxjava3.core.http.HttpClient;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import io.gravitee.definition.model.ExecutionMode;
+import io.gravitee.policy.cache.CachePolicyV4EmulationEngineIntegrationTest;
 
 /**
  * @author Yann TAVERNIER (yann.tavernier at graviteesource.com)
  * @author GraviteeSource Team
  */
-@GatewayTest(mode = GatewayMode.V3)
+@GatewayTest(v2ExecutionMode = ExecutionMode.V3)
 @DeployApi("/io/gravitee/policy/cache/integration/cacheV3.json")
-class CachePolicyV3IntegrationTest extends CachePolicyIntegrationTest {}
+class CachePolicyV3IntegrationTest extends CachePolicyV4EmulationEngineIntegrationTest {}

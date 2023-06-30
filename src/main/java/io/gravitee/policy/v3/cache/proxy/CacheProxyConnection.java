@@ -65,9 +65,8 @@ public class CacheProxyConnection implements ProxyConnection {
         CacheProxyResponse(final CacheResponse cacheResponse) {
             this.cacheResponse = cacheResponse;
             this.cacheResponse.getHeaders()
-                .forEach(
-                    (s, strings) ->
-                        httpHeaders.set(s, strings.stream().map((Function<String, CharSequence>) s1 -> s1).collect(Collectors.toList()))
+                .forEach((s, strings) ->
+                    httpHeaders.set(s, strings.stream().map((Function<String, CharSequence>) s1 -> s1).collect(Collectors.toList()))
                 );
         }
 
