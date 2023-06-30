@@ -266,51 +266,47 @@ public class CachePolicyV3 {
 
             @Override
             public ReadStream<Buffer> bodyHandler(Handler<Buffer> bodyHandler) {
-                this.proxyResponse.bodyHandler(
-                        chunk -> {
-                            bodyHandler.handle(chunk);
-                            content.appendBuffer(chunk);
-                        }
-                    );
+                this.proxyResponse.bodyHandler(chunk -> {
+                        bodyHandler.handle(chunk);
+                        content.appendBuffer(chunk);
+                    });
 
                 return this;
             }
 
             @Override
             public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
-                this.proxyResponse.endHandler(
-                        result -> {
-                            endHandler.handle(result);
-                            response.setStatus(proxyResponse.status());
+                this.proxyResponse.endHandler(result -> {
+                        endHandler.handle(result);
+                        response.setStatus(proxyResponse.status());
 
-                            io.gravitee.common.http.HttpHeaders headers = new io.gravitee.common.http.HttpHeaders();
-                            proxyResponse.headers().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
-                            response.setHeaders(headers);
-                            response.setContent(content);
-                            Vertx vertx = executionContext.getComponent(Vertx.class);
-                            vertx.executeBlocking(
-                                promise -> {
-                                    long timeToLive = -1;
-                                    if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
-                                        timeToLive = resolveTimeToLive(proxyResponse);
-                                    }
-                                    if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
-                                        timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
-                                    }
+                        io.gravitee.common.http.HttpHeaders headers = new io.gravitee.common.http.HttpHeaders();
+                        proxyResponse.headers().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
+                        response.setHeaders(headers);
+                        response.setContent(content);
+                        Vertx vertx = executionContext.getComponent(Vertx.class);
+                        vertx.executeBlocking(
+                            promise -> {
+                                long timeToLive = -1;
+                                if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
+                                    timeToLive = resolveTimeToLive(proxyResponse);
+                                }
+                                if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
+                                    timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
+                                }
 
-                                    try {
-                                        CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
-                                        element.setTimeToLive((int) timeToLive);
-                                        cache.put(element);
-                                    } catch (JsonProcessingException e) {
-                                        log.error("Cannot serialize element with key {}", cacheId);
-                                    }
-                                    promise.complete();
-                                },
-                                objectAsyncResult -> {}
-                            );
-                        }
-                    );
+                                try {
+                                    CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
+                                    element.setTimeToLive((int) timeToLive);
+                                    cache.put(element);
+                                } catch (JsonProcessingException e) {
+                                    log.error("Cannot serialize element with key {}", cacheId);
+                                }
+                                promise.complete();
+                            },
+                            objectAsyncResult -> {}
+                        );
+                    });
 
                 return this;
             }

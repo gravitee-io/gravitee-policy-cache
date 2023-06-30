@@ -64,7 +64,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
                 if (cacheResource == null) {
                     return ctx.interruptWith(
                         new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500)
-                        .message("No cache has been defined with name " + cacheName)
+                            .message("No cache has been defined with name " + cacheName)
                     );
                 }
 
@@ -72,7 +72,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
                 if (cache == null) {
                     return ctx.interruptWith(
                         new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500)
-                        .message("No cache named [ " + cacheName + " ] has been found.")
+                            .message("No cache named [ " + cacheName + " ] has been found.")
                     );
                 }
 

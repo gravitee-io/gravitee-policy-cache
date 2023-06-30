@@ -20,19 +20,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatException;
 
 import io.gravitee.apim.gateway.tests.sdk.AbstractPolicyTest;
 import io.gravitee.apim.gateway.tests.sdk.annotations.DeployApi;
 import io.gravitee.apim.gateway.tests.sdk.annotations.GatewayTest;
-import io.gravitee.apim.gateway.tests.sdk.configuration.GatewayMode;
-import io.gravitee.apim.gateway.tests.sdk.connector.EndpointBuilder;
-import io.gravitee.apim.gateway.tests.sdk.connector.EntrypointBuilder;
 import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
-import io.gravitee.plugin.endpoint.EndpointConnectorPlugin;
-import io.gravitee.plugin.endpoint.http.proxy.HttpProxyEndpointConnectorFactory;
-import io.gravitee.plugin.entrypoint.EntrypointConnectorPlugin;
-import io.gravitee.plugin.entrypoint.http.proxy.HttpProxyEntrypointConnectorFactory;
 import io.gravitee.plugin.resource.ResourcePlugin;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
@@ -40,16 +32,13 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.rxjava3.core.http.HttpClient;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @GatewayTest
-@DeployApi("/io/gravitee/policy/cache/integration/cacheV4.json")
-public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<CachePolicyV3, CachePolicyConfiguration> {
+@DeployApi("/io/gravitee/policy/cache/integration/cacheV3.json")
+public abstract class CachePolicyV4EmulationEngineIntegrationTest extends AbstractPolicyTest<CachePolicyV3, CachePolicyConfiguration> {
 
     public static final String RESPONSE_FROM_BACKEND_1 = "response from backend";
     public static final String RESPONSE_FROM_BACKEND_2 = "response from backend modified";
@@ -75,23 +64,19 @@ public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<Cach
         final var secondObs = client
             .rxRequest(HttpMethod.GET, "/test")
             .flatMap(request -> request.rxSend())
-            .flatMapPublisher(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    return response.toFlowable();
-                }
-            )
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
             .test();
 
         secondObs.await(1000, TimeUnit.MILLISECONDS);
         secondObs
             .assertComplete()
-            .assertValue(
-                buffer -> {
-                    assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_1);
-                    return true;
-                }
-            )
+            .assertValue(buffer -> {
+                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_1);
+                return true;
+            })
             .assertNoErrors();
 
         // For the second call, we should have called the backend only once (the first time)
@@ -113,24 +98,20 @@ public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<Cach
         final var secondObs = client
             .rxRequest(HttpMethod.GET, "/test")
             .flatMap(request -> request.putHeader(CachePolicyV3.X_GRAVITEE_CACHE_ACTION, CacheAction.REFRESH.name()).rxSend())
-            .flatMapPublisher(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    return response.toFlowable();
-                }
-            )
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
             .test();
 
         secondObs.await(1000, TimeUnit.MILLISECONDS);
 
         secondObs
             .assertComplete()
-            .assertValue(
-                buffer -> {
-                    assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
-                    return true;
-                }
-            )
+            .assertValue(buffer -> {
+                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                return true;
+            })
             .assertNoErrors();
 
         // For the second call, we should have called the backend a second time
@@ -152,23 +133,19 @@ public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<Cach
         final var secondObs = client
             .rxRequest(HttpMethod.GET, "/test?cache=" + CacheAction.REFRESH.name())
             .flatMap(request -> request.rxSend())
-            .flatMapPublisher(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    return response.toFlowable();
-                }
-            )
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
             .test();
 
         secondObs.await(1000, TimeUnit.MILLISECONDS);
         secondObs
             .assertComplete()
-            .assertValue(
-                buffer -> {
-                    assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
-                    return true;
-                }
-            )
+            .assertValue(buffer -> {
+                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                return true;
+            })
             .assertNoErrors();
 
         // For the second call, we should have called the backend a second time
@@ -184,24 +161,20 @@ public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<Cach
         final var obs = client
             .rxRequest(HttpMethod.GET, "/test")
             .flatMap(request -> request.putHeader(CachePolicyV3.X_GRAVITEE_CACHE_ACTION, CacheAction.BY_PASS.name()).rxSend())
-            .flatMapPublisher(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    return response.toFlowable();
-                }
-            )
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
             .test();
 
         obs.await(1000, TimeUnit.MILLISECONDS);
 
         obs
             .assertComplete()
-            .assertValue(
-                buffer -> {
-                    assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
-                    return true;
-                }
-            )
+            .assertValue(buffer -> {
+                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                return true;
+            })
             .assertNoErrors();
 
         // For the second call, we should have called the backend a second time
@@ -220,23 +193,19 @@ public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<Cach
         final var obs = client
             .rxRequest(HttpMethod.GET, "/test?cache=" + CacheAction.BY_PASS.name())
             .flatMap(request -> request.rxSend())
-            .flatMapPublisher(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    return response.toFlowable();
-                }
-            )
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
             .test();
 
         obs.await(1000, TimeUnit.MILLISECONDS);
         obs
             .assertComplete()
-            .assertValue(
-                buffer -> {
-                    assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
-                    return true;
-                }
-            )
+            .assertValue(buffer -> {
+                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                return true;
+            })
             .assertNoErrors();
 
         // For the second call, we should have called the backend a second time
@@ -249,28 +218,22 @@ public abstract class CachePolicyIntegrationTest extends AbstractPolicyTest<Cach
 
         final var obs = client
             .rxRequest(HttpMethod.GET, "/test")
-            .flatMap(
-                request -> {
-                    return request.rxSend();
-                }
-            )
-            .flatMapPublisher(
-                response -> {
-                    assertThat(response.statusCode()).isEqualTo(200);
-                    return response.toFlowable();
-                }
-            )
+            .flatMap(request -> {
+                return request.rxSend();
+            })
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
             .test();
 
         obs.await(30000, TimeUnit.MILLISECONDS);
         obs
             .assertComplete()
-            .assertValue(
-                buffer -> {
-                    assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_1);
-                    return true;
-                }
-            )
+            .assertValue(buffer -> {
+                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_1);
+                return true;
+            })
             .assertNoErrors();
 
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));

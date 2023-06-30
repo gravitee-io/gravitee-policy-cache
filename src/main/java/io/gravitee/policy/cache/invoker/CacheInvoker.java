@@ -85,55 +85,53 @@ public class CacheInvoker implements Invoker {
         return Single
             .fromCallable(() -> Optional.ofNullable(cache.get(cacheId)))
             .subscribeOn(Schedulers.io())
-            .flatMapCompletable(
-                optElt -> {
-                    Response response = executionContext.response();
-                    if (optElt.isEmpty() || action == CacheAction.REFRESH) {
-                        if (action == CacheAction.REFRESH) {
-                            log.info(
-                                "A refresh action has been received for key {}, invoke backend with invoker {}",
-                                cacheId,
-                                this.delegateInvoker.getClass().getName()
-                            );
-                        } else {
-                            log.debug(
-                                "No element for key {}, invoke backend with invoker {}",
-                                cacheId,
-                                this.delegateInvoker.getClass().getName()
-                            );
-                        }
-
-                        return this.delegateInvoker.invoke(executionContext)
-                            .andThen(
-                                Completable.defer(
-                                    () -> response.onBody(body -> body.doOnSuccess(buffer -> storeInCache(cacheId, response, buffer)))
-                                )
-                            );
+            .flatMapCompletable(optElt -> {
+                Response response = executionContext.response();
+                if (optElt.isEmpty() || action == CacheAction.REFRESH) {
+                    if (action == CacheAction.REFRESH) {
+                        log.info(
+                            "A refresh action has been received for key {}, invoke backend with invoker {}",
+                            cacheId,
+                            this.delegateInvoker.getClass().getName()
+                        );
                     } else {
-                        log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+                        log.debug(
+                            "No element for key {}, invoke backend with invoker {}",
+                            cacheId,
+                            this.delegateInvoker.getClass().getName()
+                        );
+                    }
 
-                        var elt = optElt.get();
-                        try {
-                            var cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
-                            response.status(cacheResponse.getStatus());
-                            if (cacheResponse.getHeaders() != null) {
-                                cacheResponse
-                                    .getHeaders()
-                                    .forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
-                            }
-                            return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cacheResponse.getContent())));
-                        } catch (JsonProcessingException e) {
-                            log.warn(
-                                "Cannot deserialize element with key {}, invoke backend with invoker {}",
-                                cacheId,
-                                delegateInvoker.getClass().getName()
-                            );
-                            evictFromCache(cacheId);
-                            return this.delegateInvoker.invoke(executionContext);
+                    return this.delegateInvoker.invoke(executionContext)
+                        .andThen(
+                            Completable.defer(() ->
+                                response.onBody(body -> body.doOnSuccess(buffer -> storeInCache(cacheId, response, buffer)))
+                            )
+                        );
+                } else {
+                    log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+
+                    var elt = optElt.get();
+                    try {
+                        var cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
+                        response.status(cacheResponse.getStatus());
+                        if (cacheResponse.getHeaders() != null) {
+                            cacheResponse
+                                .getHeaders()
+                                .forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
                         }
+                        return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cacheResponse.getContent())));
+                    } catch (JsonProcessingException e) {
+                        log.warn(
+                            "Cannot deserialize element with key {}, invoke backend with invoker {}",
+                            cacheId,
+                            delegateInvoker.getClass().getName()
+                        );
+                        evictFromCache(cacheId);
+                        return this.delegateInvoker.invoke(executionContext);
                     }
                 }
-            );
+            });
     }
 
     private void evictFromCache(String cacheId) {
@@ -141,46 +139,38 @@ public class CacheInvoker implements Invoker {
             .fromAction(() -> cache.evict(cacheId))
             .subscribeOn(Schedulers.io())
             .doOnComplete(() -> log.debug("Element {} evicted from the cache {}", cacheId, cache.getName()))
-            .onErrorResumeNext(
-                err -> {
-                    log.warn("Element {} can't be evicted from the cache {}", cacheId, cache.getName(), err);
-                    return Completable.complete();
-                }
-            )
+            .onErrorResumeNext(err -> {
+                log.warn("Element {} can't be evicted from the cache {}", cacheId, cache.getName(), err);
+                return Completable.complete();
+            })
             .subscribe();
     }
 
     private void storeInCache(String cacheId, Response response, Buffer buffer) {
         Completable
-            .fromAction(
-                () -> {
-                    final var httpHeaders = new HttpHeaders();
-                    response
-                        .headers()
-                        .forEach(
-                            entry -> {
-                                httpHeaders.add(entry.getKey(), entry.getValue());
-                            }
-                        );
-                    final var resp = new CacheResponse();
-                    resp.setContent(buffer);
-                    resp.setStatus(response.status());
-                    resp.setHeaders(httpHeaders);
+            .fromAction(() -> {
+                final var httpHeaders = new HttpHeaders();
+                response
+                    .headers()
+                    .forEach(entry -> {
+                        httpHeaders.add(entry.getKey(), entry.getValue());
+                    });
+                final var resp = new CacheResponse();
+                resp.setContent(buffer);
+                resp.setStatus(response.status());
+                resp.setHeaders(httpHeaders);
 
-                    long timeToLive = resolveTimeToLive(response);
-                    CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
-                    element.setTimeToLive((int) timeToLive);
-                    cache.put(element);
-                }
-            )
+                long timeToLive = resolveTimeToLive(response);
+                CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
+                element.setTimeToLive((int) timeToLive);
+                cache.put(element);
+            })
             .subscribeOn(Schedulers.io())
             .doOnComplete(() -> log.debug("Element {} stored into the cache {}", cacheId, cache.getName()))
-            .onErrorResumeNext(
-                err -> {
-                    log.warn("Element {} can't be stored into the cache {}", cacheId, cache.getName(), err);
-                    return Completable.complete();
-                }
-            )
+            .onErrorResumeNext(err -> {
+                log.warn("Element {} can't be stored into the cache {}", cacheId, cache.getName(), err);
+                return Completable.complete();
+            })
             .subscribe();
     }
 

@@ -15,37 +15,17 @@
  */
 package io.gravitee.policy.cache;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.ok;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-
-import io.gravitee.apim.gateway.tests.sdk.AbstractPolicyTest;
 import io.gravitee.apim.gateway.tests.sdk.annotations.DeployApi;
-import io.gravitee.apim.gateway.tests.sdk.annotations.GatewayTest;
 import io.gravitee.apim.gateway.tests.sdk.connector.EndpointBuilder;
 import io.gravitee.apim.gateway.tests.sdk.connector.EntrypointBuilder;
-import io.gravitee.apim.gateway.tests.sdk.policy.PolicyBuilder;
-import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
 import io.gravitee.plugin.endpoint.EndpointConnectorPlugin;
 import io.gravitee.plugin.endpoint.http.proxy.HttpProxyEndpointConnectorFactory;
 import io.gravitee.plugin.entrypoint.EntrypointConnectorPlugin;
 import io.gravitee.plugin.entrypoint.http.proxy.HttpProxyEntrypointConnectorFactory;
-import io.gravitee.plugin.policy.PolicyPlugin;
-import io.gravitee.plugin.resource.ResourcePlugin;
-import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.gravitee.policy.v3.cache.CachePolicyV3;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.rxjava3.core.http.HttpClient;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 
-@GatewayTest
 @DeployApi("/io/gravitee/policy/cache/integration/cacheV4.json")
-public class CachePolicyV4IntegrationTest extends CachePolicyIntegrationTest {
+public class CachePolicyV4IntegrationTest extends CachePolicyV4EmulationEngineIntegrationTest {
 
     @Override
     public void configureEntrypoints(Map<String, EntrypointConnectorPlugin<?, ?>> entrypoints) {
