@@ -15,8 +15,9 @@
  */
 package io.gravitee.policy.cache.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.time.Instant;
-import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -28,18 +29,18 @@ public class ExpiresUtilTest {
     @Test
     public void shouldParseExpiresHeader() {
         Instant instant = ExpiresUtil.parseExpires("Thu, 01 Dec 1994 16:00:00 GMT");
-        Assert.assertNotNull(instant);
+        assertThat(instant).isNotNull();
     }
 
     @Test
     public void shouldNotParseExpiresHeader() {
         Instant instant = ExpiresUtil.parseExpires("Thu, 01 Dc 1994 16:00:00 GMT");
-        Assert.assertNull(instant);
+        assertThat(instant).isNull();
     }
 
     @Test
     public void shouldNotParseNullExpiresHeader() {
         Instant instant = ExpiresUtil.parseExpires(null);
-        Assert.assertNull(instant);
+        assertThat(instant).isNull();
     }
 }

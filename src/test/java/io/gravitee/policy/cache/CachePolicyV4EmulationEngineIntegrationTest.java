@@ -30,6 +30,7 @@ import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.rxjava3.core.http.HttpClient;
+import io.vertx.rxjava3.core.http.HttpClientRequest;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -63,7 +64,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
 
         final var secondObs = client
             .rxRequest(HttpMethod.GET, "/test")
-            .flatMap(request -> request.rxSend())
+            .flatMap(HttpClientRequest::rxSend)
             .flatMapPublisher(response -> {
                 assertThat(response.statusCode()).isEqualTo(200);
                 return response.toFlowable();
@@ -74,7 +75,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         secondObs
             .assertComplete()
             .assertValue(buffer -> {
-                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_1);
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
                 return true;
             })
             .assertNoErrors();
@@ -109,7 +110,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         secondObs
             .assertComplete()
             .assertValue(buffer -> {
-                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_2);
                 return true;
             })
             .assertNoErrors();
@@ -132,7 +133,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
 
         final var secondObs = client
             .rxRequest(HttpMethod.GET, "/test?cache=" + CacheAction.REFRESH.name())
-            .flatMap(request -> request.rxSend())
+            .flatMap(HttpClientRequest::rxSend)
             .flatMapPublisher(response -> {
                 assertThat(response.statusCode()).isEqualTo(200);
                 return response.toFlowable();
@@ -143,7 +144,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         secondObs
             .assertComplete()
             .assertValue(buffer -> {
-                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_2);
                 return true;
             })
             .assertNoErrors();
@@ -172,7 +173,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         obs
             .assertComplete()
             .assertValue(buffer -> {
-                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_2);
                 return true;
             })
             .assertNoErrors();
@@ -192,7 +193,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
 
         final var obs = client
             .rxRequest(HttpMethod.GET, "/test?cache=" + CacheAction.BY_PASS.name())
-            .flatMap(request -> request.rxSend())
+            .flatMap(HttpClientRequest::rxSend)
             .flatMapPublisher(response -> {
                 assertThat(response.statusCode()).isEqualTo(200);
                 return response.toFlowable();
@@ -203,7 +204,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         obs
             .assertComplete()
             .assertValue(buffer -> {
-                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_2);
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_2);
                 return true;
             })
             .assertNoErrors();
@@ -218,9 +219,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
 
         final var obs = client
             .rxRequest(HttpMethod.GET, "/test")
-            .flatMap(request -> {
-                return request.rxSend();
-            })
+            .flatMap(HttpClientRequest::rxSend)
             .flatMapPublisher(response -> {
                 assertThat(response.statusCode()).isEqualTo(200);
                 return response.toFlowable();
@@ -231,7 +230,7 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         obs
             .assertComplete()
             .assertValue(buffer -> {
-                assertThat(buffer.toString()).isEqualTo(RESPONSE_FROM_BACKEND_1);
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
                 return true;
             })
             .assertNoErrors();
