@@ -17,16 +17,12 @@ package io.gravitee.policy.cache;
 
 import io.gravitee.gateway.api.ExecutionContext;
 import io.gravitee.gateway.reactive.api.context.GenericExecutionContext;
-import io.gravitee.resource.api.AbstractResource;
-import io.gravitee.resource.api.Resource;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.gravitee.resource.cache.api.Element;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
