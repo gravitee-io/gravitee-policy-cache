@@ -1,3 +1,23 @@
+# [2.0.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.16.0...2.0.0) (2023-07-18)
+
+
+### chore
+
+* **deps:** update gravitee-parent ([a8ae21b](https://github.com/gravitee-io/gravitee-policy-cache/commit/a8ae21b8c538ec1ca81392fb498048ba64184f2b))
+
+
+### Features
+
+* clean and validate json schema for v4 ([bec42c3](https://github.com/gravitee-io/gravitee-policy-cache/commit/bec42c365b98b81dc93dd912c6aa2e191e465047))
+* improve special resource type ui component to make it generic ([a140685](https://github.com/gravitee-io/gravitee-policy-cache/commit/a14068540d1903f739fcc8715830cbd63f822563))
+* Make cache policy compatible wit V4 API ([38023b2](https://github.com/gravitee-io/gravitee-policy-cache/commit/38023b237dbf67553f0ad2cb3be0e0a5c24a7770))
+
+
+### BREAKING CHANGES
+
+* **deps:** require Java17
+* This implementation is using the dependencies introduced by Gravitee V4.0
+
 # [2.0.0-alpha.3](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.0-alpha.2...2.0.0-alpha.3) (2023-06-30)
 
 
