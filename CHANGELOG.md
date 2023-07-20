@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.0...2.0.1) (2023-07-20)
+
+
+### Bug Fixes
+
+* update policy description ([a19677f](https://github.com/gravitee-io/gravitee-policy-cache/commit/a19677f5364dc7d15d4d938316b32ea7db0b1170))
+
 # [2.0.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.16.0...2.0.0) (2023-07-18)
 
 
