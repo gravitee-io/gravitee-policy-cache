@@ -1,3 +1,10 @@
+## [2.0.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.1...2.0.2) (2023-09-29)
+
+
+### Bug Fixes
+
+* correct typo in cache bypass instructions ([f6c98b3](https://github.com/gravitee-io/gravitee-policy-cache/commit/f6c98b3d162d15f999b981c6ad5f10a0b6208f8d))
+
 ## [2.0.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.0...2.0.1) (2023-07-20)
 
 
