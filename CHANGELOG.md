@@ -1,3 +1,10 @@
+## [1.16.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.16.0...1.16.1) (2023-10-09)
+
+
+### Bug Fixes
+
+* correct typo in cache bypass instructions ([8ed45bd](https://github.com/gravitee-io/gravitee-policy-cache/commit/8ed45bd594cb987f8156062dcf5dec00a439a6a4))
+
 # [1.16.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/1.15.2...1.16.0) (2023-05-05)
 
 
