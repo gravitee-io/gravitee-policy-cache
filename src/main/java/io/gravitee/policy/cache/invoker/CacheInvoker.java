@@ -40,9 +40,7 @@ import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -104,9 +102,14 @@ public class CacheInvoker implements Invoker {
 
                     return this.delegateInvoker.invoke(executionContext)
                         .andThen(
-                            Completable.defer(() ->
-                                response.onBody(body -> body.doOnSuccess(buffer -> storeInCache(cacheId, response, buffer)))
-                            )
+                            Completable.defer(() -> {
+                                final var httpHeaders = new HttpHeaders();
+                                response.headers().forEach(entry -> httpHeaders.add(entry.getKey(), entry.getValue()));
+                                final var status = response.status();
+                                return response.onBody(body ->
+                                    body.doOnSuccess(buffer -> storeInCache(cacheId, httpHeaders, status, buffer))
+                                );
+                            })
                         );
                 } else {
                     log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
@@ -146,21 +149,15 @@ public class CacheInvoker implements Invoker {
             .subscribe();
     }
 
-    private void storeInCache(String cacheId, Response response, Buffer buffer) {
+    private void storeInCache(String cacheId, HttpHeaders httpHeaders, int status, Buffer buffer) {
         Completable
             .fromAction(() -> {
-                final var httpHeaders = new HttpHeaders();
-                response
-                    .headers()
-                    .forEach(entry -> {
-                        httpHeaders.add(entry.getKey(), entry.getValue());
-                    });
                 final var resp = new CacheResponse();
                 resp.setContent(buffer);
-                resp.setStatus(response.status());
+                resp.setStatus(status);
                 resp.setHeaders(httpHeaders);
 
-                long timeToLive = resolveTimeToLive(response);
+                long timeToLive = resolveTimeToLive(httpHeaders);
                 CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
                 element.setTimeToLive((int) timeToLive);
                 cache.put(element);
@@ -225,10 +222,10 @@ public class CacheInvoker implements Invoker {
             .hashCode();
     }
 
-    public long resolveTimeToLive(Response response) {
+    public long resolveTimeToLive(HttpHeaders httpHeaders) {
         long timeToLive = -1;
         if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
-            timeToLive = timeToLiveFromResponse(response);
+            timeToLive = timeToLiveFromResponse(httpHeaders);
         }
 
         if (timeToLive != -1 && cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
@@ -238,16 +235,21 @@ public class CacheInvoker implements Invoker {
         return timeToLive;
     }
 
-    public static long timeToLiveFromResponse(Response response) {
+    public static long timeToLiveFromResponse(HttpHeaders httpHeaders) {
         long timeToLive = -1;
-        CacheControl cacheControl = CacheControlUtil.parseCacheControl(response.headers().get(HttpHeaderNames.CACHE_CONTROL));
+        String cacheControlHeader = Optional
+            .ofNullable(httpHeaders.get(HttpHeaderNames.CACHE_CONTROL))
+            .map(list -> list.get(0))
+            .orElse(null);
+        CacheControl cacheControl = CacheControlUtil.parseCacheControl(cacheControlHeader);
 
         if (cacheControl != null && cacheControl.getSMaxAge() != -1) {
             timeToLive = cacheControl.getSMaxAge();
         } else if (cacheControl != null && cacheControl.getMaxAge() != -1) {
             timeToLive = cacheControl.getMaxAge();
         } else {
-            Instant expiresAt = ExpiresUtil.parseExpires(response.headers().getFirst(HttpHeaderNames.EXPIRES));
+            String expiresHeader = Optional.ofNullable(httpHeaders.get(HttpHeaderNames.EXPIRES)).map(list -> list.get(0)).orElse(null);
+            Instant expiresAt = ExpiresUtil.parseExpires(expiresHeader);
             if (expiresAt != null) {
                 long expiresInSeconds = (expiresAt.toEpochMilli() - System.currentTimeMillis()) / 1000;
                 timeToLive = (expiresInSeconds < 0) ? -1 : expiresInSeconds;
