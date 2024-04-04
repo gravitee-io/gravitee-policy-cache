@@ -59,7 +59,15 @@
                     }
                 }
             ],
-            "response": [],
+            "response": [
+                {
+                    "name": "Transform headers",
+                    "description": "",
+                    "enabled": true,
+                    "policy": "transform-headers",
+                    "configuration": {}
+                }
+            ],
             "subscribe": [],
             "publish": []
         }
