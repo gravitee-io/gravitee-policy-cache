@@ -24,15 +24,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.gravitee.apim.gateway.tests.sdk.AbstractPolicyTest;
 import io.gravitee.apim.gateway.tests.sdk.annotations.DeployApi;
 import io.gravitee.apim.gateway.tests.sdk.annotations.GatewayTest;
+import io.gravitee.apim.gateway.tests.sdk.policy.PolicyBuilder;
+import io.gravitee.apim.gateway.tests.sdk.policy.fakes.Stream1Policy;
 import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
+import io.gravitee.plugin.policy.PolicyPlugin;
 import io.gravitee.plugin.resource.ResourcePlugin;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
+import io.micrometer.observation.Observation;
+import io.reactivex.rxjava3.plugins.RxJavaPlugins;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.reactivex.rxjava3.schedulers.TestScheduler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.rxjava3.core.http.HttpClient;
 import io.vertx.rxjava3.core.http.HttpClientRequest;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,6 +53,12 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
 
     public static final String RESPONSE_FROM_BACKEND_1 = "response from backend";
     public static final String RESPONSE_FROM_BACKEND_2 = "response from backend modified";
+
+    @Override
+    public void configurePolicies(Map<String, PolicyPlugin> policies) {
+        policies.put("transform-headers", PolicyBuilder.build("transform-headers", TransformHeaderPolicy.class));
+        super.configurePolicies(policies);
+    }
 
     @Override
     public void configureResources(Map<String, ResourcePlugin> resources) {
@@ -83,6 +99,69 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend only once (the first time)
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
+    }
+
+    @Test
+    @DisplayName("Should not put client response headers in cache")
+    void shouldNotPutClientResponseHeaderInCache(HttpClient client) throws Exception {
+        try {
+            final AtomicInteger c = new AtomicInteger(0);
+            final TestScheduler testScheduler = new TestScheduler();
+            RxJavaPlugins.setIoSchedulerHandler(s -> {
+                if (c.incrementAndGet() == 2) {
+                    // Intercept the scheduler use to store in cache. It should be the second one (first is getCache)
+                    return testScheduler;
+                }
+
+                return s;
+            });
+
+            performFirstCall(
+                client,
+                () -> {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception ignored) {}
+                    testScheduler.triggerActions();
+                }
+            );
+
+            RxJavaPlugins.reset();
+
+            wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_2)));
+
+            final var secondObs = client
+                .rxRequest(HttpMethod.GET, "/test")
+                .flatMap(HttpClientRequest::rxSend)
+                .flatMapPublisher(response -> {
+                    assertThat(response.statusCode()).isEqualTo(200);
+                    assertThat(response.headers().contains("X-Transform-Header-Policy"))
+                        .withFailMessage("The transform header policy should have been executed")
+                        .isTrue();
+                    assertThat(response.headers().contains("X-Backend-Header"))
+                        .withFailMessage("The X-Backend-Header should have been cached")
+                        .isTrue();
+                    assertThat(response.headers().contains("X-Client-Header"))
+                        .withFailMessage("The X-Client-Header should NOT have been cached")
+                        .isFalse();
+                    return response.toFlowable();
+                })
+                .test();
+
+            secondObs.await(1000, TimeUnit.MILLISECONDS);
+            secondObs
+                .assertComplete()
+                .assertValue(buffer -> {
+                    assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
+                    return true;
+                })
+                .assertNoErrors();
+
+            // For the second call, we should have called the backend only once (the first time)
+            wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
+        } finally {
+            RxJavaPlugins.reset();
+        }
     }
 
     @Test
@@ -215,16 +294,27 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
     }
 
     private void performFirstCall(HttpClient client) throws InterruptedException {
-        wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_1)));
+        performFirstCall(client, () -> {});
+    }
+
+    private void performFirstCall(HttpClient client, Runnable action) throws InterruptedException {
+        wiremock.stubFor(
+            get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_1).withHeader("X-Backend-Header", "This_Header_Should_Be_Cached"))
+        );
 
         final var obs = client
             .rxRequest(HttpMethod.GET, "/test")
-            .flatMap(HttpClientRequest::rxSend)
+            .flatMap(httpClientRequest -> {
+                httpClientRequest.headers().add("X-First-Call", "True");
+                return httpClientRequest.rxSend();
+            })
             .flatMapPublisher(response -> {
                 assertThat(response.statusCode()).isEqualTo(200);
                 return response.toFlowable();
             })
             .test();
+
+        action.run();
 
         obs.await(30000, TimeUnit.MILLISECONDS);
         obs

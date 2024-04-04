@@ -38,7 +38,15 @@
                     }
                 }
             ],
-            "post": []
+            "post": [
+                {
+                    "name": "Transform headers",
+                    "description": "",
+                    "enabled": true,
+                    "policy": "transform-headers",
+                    "configuration": {}
+                }
+            ]
         }
     ],
     "resources": [
