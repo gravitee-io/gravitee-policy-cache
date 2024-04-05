@@ -1,3 +1,10 @@
+## [2.0.3](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.2...2.0.3) (2024-04-05)
+
+
+### Bug Fixes
+
+* **cache:** deep copy of the mutable headers to avoid problems while async store in cache ([fde9bf6](https://github.com/gravitee-io/gravitee-policy-cache/commit/fde9bf64505fa5da8946d10504f18f3e3a50917a))
+
 ## [2.0.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.1...2.0.2) (2023-09-29)
 
 
