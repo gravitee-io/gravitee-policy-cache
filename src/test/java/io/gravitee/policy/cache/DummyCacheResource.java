@@ -15,8 +15,12 @@
  */
 package io.gravitee.policy.cache;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.gateway.api.ExecutionContext;
 import io.gravitee.gateway.reactive.api.context.GenericExecutionContext;
+import io.gravitee.policy.cache.configuration.SerializationMode;
+import io.gravitee.policy.cache.mapper.CacheResponseMapper;
+import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.gravitee.resource.cache.api.Element;
@@ -31,6 +35,11 @@ import org.junit.jupiter.api.Assertions;
 public class DummyCacheResource extends CacheResource {
 
     private static Cache instance;
+    private static CacheResponseMapper mapper = new CacheResponseMapper();
+
+    static {
+        mapper.setSerializationMode(SerializationMode.TEXT);
+    }
 
     @Override
     public Cache getCache(ExecutionContext executionContext) {
@@ -53,6 +62,11 @@ public class DummyCacheResource extends CacheResource {
             Thread.sleep(2000);
         } catch (Exception e) {}
         Assertions.assertEquals(expectedSize, ((Map) getDummyCacheInstance().getNativeCache()).size());
+    }
+
+    public static CacheResponse getFirstEntry() throws JsonProcessingException {
+        CacheElement cacheElement = (CacheElement) ((Map) getDummyCacheInstance().getNativeCache()).values().iterator().next();
+        return mapper.readValue(cacheElement.value().toString(), CacheResponse.class);
     }
 
     @Override

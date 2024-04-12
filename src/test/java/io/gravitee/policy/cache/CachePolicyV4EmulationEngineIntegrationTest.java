@@ -25,24 +25,20 @@ import io.gravitee.apim.gateway.tests.sdk.AbstractPolicyTest;
 import io.gravitee.apim.gateway.tests.sdk.annotations.DeployApi;
 import io.gravitee.apim.gateway.tests.sdk.annotations.GatewayTest;
 import io.gravitee.apim.gateway.tests.sdk.policy.PolicyBuilder;
-import io.gravitee.apim.gateway.tests.sdk.policy.fakes.Stream1Policy;
 import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
 import io.gravitee.plugin.policy.PolicyPlugin;
 import io.gravitee.plugin.resource.ResourcePlugin;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
-import io.micrometer.observation.Observation;
 import io.reactivex.rxjava3.plugins.RxJavaPlugins;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.reactivex.rxjava3.schedulers.TestScheduler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.rxjava3.core.http.HttpClient;
 import io.vertx.rxjava3.core.http.HttpClientRequest;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -99,6 +95,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend only once (the first time)
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
+        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        assertThat(firstEntry).isNotNull();
+        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_1);
     }
 
     @Test
@@ -197,6 +196,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend a second time
         wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
+        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        assertThat(firstEntry).isNotNull();
+        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_2);
     }
 
     @Test
@@ -231,6 +233,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend a second time
         wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
+        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        assertThat(firstEntry).isNotNull();
+        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_2);
     }
 
     @Test
@@ -291,6 +296,57 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend a second time
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(0);
+    }
+
+    @Test
+    @DisplayName("Should invoke cache instead of backend when doing the same call twice and should encode/decode content")
+    void shouldUseCache_BinaryContentType(HttpClient client) throws Exception {
+        wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_1).withHeader("Content-Type", "image/png")));
+
+        final var firstObs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
+            .test();
+
+        firstObs.await(1000, TimeUnit.MILLISECONDS);
+        firstObs
+            .assertComplete()
+            .assertValue(buffer -> {
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
+                return true;
+            })
+            .assertNoErrors();
+
+        wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_2).withHeader("Content-Type", "application/json")));
+
+        final var secondObs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
+            .test();
+
+        secondObs.await(1000, TimeUnit.MILLISECONDS);
+        secondObs
+            .assertComplete()
+            .assertValue(buffer -> {
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
+                return true;
+            })
+            .assertNoErrors();
+
+        // For the second call, we should have called the backend only once (the first time)
+        wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
+        DummyCacheResource.checkNumberOfCacheEntries(1);
+        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        assertThat(firstEntry).isNotNull();
+        assertThat(firstEntry.getContent()).hasToString(Base64.getEncoder().encodeToString(RESPONSE_FROM_BACKEND_1.getBytes()));
     }
 
     private void performFirstCall(HttpClient client) throws InterruptedException {
