@@ -15,6 +15,8 @@
  */
 package io.gravitee.policy.cache.invoker;
 
+import static io.gravitee.policy.cache.util.ContentTypeUtil.hasBinaryContentType;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.gateway.api.buffer.Buffer;
@@ -123,7 +125,10 @@ public class CacheInvoker implements Invoker {
                                 .getHeaders()
                                 .forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
                         }
-                        return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cacheResponse.getContent())));
+                        Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
+                            ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
+                            : cacheResponse.getContent();
+                        return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(content)));
                     } catch (JsonProcessingException e) {
                         log.warn(
                             "Cannot deserialize element with key {}, invoke backend with invoker {}",
@@ -153,7 +158,8 @@ public class CacheInvoker implements Invoker {
         Completable
             .fromAction(() -> {
                 final var resp = new CacheResponse();
-                resp.setContent(buffer);
+                Buffer content = hasBinaryContentType(httpHeaders) ? Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes())) : buffer;
+                resp.setContent(content);
                 resp.setStatus(status);
                 resp.setHeaders(httpHeaders);
 

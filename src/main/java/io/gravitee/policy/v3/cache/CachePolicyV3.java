@@ -15,6 +15,8 @@
  */
 package io.gravitee.policy.v3.cache;
 
+import static io.gravitee.policy.cache.util.ContentTypeUtil.hasBinaryContentType;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.http.HttpStatusCode;
@@ -51,6 +53,7 @@ import io.gravitee.resource.cache.api.Element;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Vertx;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -149,9 +152,12 @@ public class CachePolicyV3 {
                             log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
                             try {
-                                final ProxyConnection proxyConnection = new CacheProxyConnection(
-                                    mapper.readValue(elt.value().toString(), CacheResponse.class)
-                                );
+                                CacheResponse cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
+                                Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
+                                    ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
+                                    : cacheResponse.getContent();
+                                cacheResponse.setContent(content);
+                                final ProxyConnection proxyConnection = new CacheProxyConnection(cacheResponse);
 
                                 // Ok, there is a value for this request in cache so send it through proxy connection
                                 connectionHandler.handle(proxyConnection);
@@ -283,7 +289,10 @@ public class CachePolicyV3 {
                         io.gravitee.common.http.HttpHeaders headers = new io.gravitee.common.http.HttpHeaders();
                         proxyResponse.headers().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
                         response.setHeaders(headers);
-                        response.setContent(content);
+                        Buffer buffer = hasBinaryContentType(headers)
+                            ? Buffer.buffer(Base64.getEncoder().encode(content.getBytes()))
+                            : content;
+                        response.setContent(buffer);
                         Vertx vertx = executionContext.getComponent(Vertx.class);
                         vertx.executeBlocking(
                             promise -> {
