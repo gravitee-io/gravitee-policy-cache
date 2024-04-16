@@ -1,3 +1,10 @@
+## [2.0.4](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.3...2.0.4) (2024-04-16)
+
+
+### Bug Fixes
+
+* **cache:** encode and decode content while storing in cache to allow storing octet-stream data ([1f22a02](https://github.com/gravitee-io/gravitee-policy-cache/commit/1f22a020b5e63310eef633a81225b4cd2cec98a1))
+
 ## [2.0.3](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.2...2.0.3) (2024-04-05)
 
 
