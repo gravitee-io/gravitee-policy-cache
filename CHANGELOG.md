@@ -1,3 +1,10 @@
+## [2.0.5](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.4...2.0.5) (2024-04-17)
+
+
+### Bug Fixes
+
+* **cache:** evaluate response condition before store in cache ([8026394](https://github.com/gravitee-io/gravitee-policy-cache/commit/8026394660e7afab4fefcfdb41e50bb07034f160))
+
 ## [2.0.4](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.3...2.0.4) (2024-04-16)
 
 
