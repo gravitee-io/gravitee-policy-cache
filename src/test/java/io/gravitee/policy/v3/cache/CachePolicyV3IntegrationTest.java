@@ -25,5 +25,7 @@ import io.gravitee.policy.cache.CachePolicyV4EmulationEngineIntegrationTest;
  * @author GraviteeSource Team
  */
 @GatewayTest(v2ExecutionMode = ExecutionMode.V3)
-@DeployApi("/io/gravitee/policy/cache/integration/cacheV3.json")
+@DeployApi(
+    { "/io/gravitee/policy/cache/integration/cacheV3.json", "/io/gravitee/policy/cache/integration/cacheV3NoResponseCondition.json" }
+)
 class CachePolicyV3IntegrationTest extends CachePolicyV4EmulationEngineIntegrationTest {}

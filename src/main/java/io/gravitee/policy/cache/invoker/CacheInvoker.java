@@ -16,9 +16,11 @@
 package io.gravitee.policy.cache.invoker;
 
 import static io.gravitee.policy.cache.util.ContentTypeUtil.hasBinaryContentType;
+import static io.gravitee.policy.v3.cache.CachePolicyV3.UPSTREAM_RESPONSE;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpHeaders;
+import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.http.HttpHeaderNames;
 import io.gravitee.gateway.reactive.api.context.ExecutionContext;
@@ -103,16 +105,7 @@ public class CacheInvoker implements Invoker {
                     }
 
                     return this.delegateInvoker.invoke(executionContext)
-                        .andThen(
-                            Completable.defer(() -> {
-                                final var httpHeaders = new HttpHeaders();
-                                response.headers().forEach(entry -> httpHeaders.add(entry.getKey(), entry.getValue()));
-                                final var status = response.status();
-                                return response.onBody(body ->
-                                    body.doOnSuccess(buffer -> storeInCache(cacheId, httpHeaders, status, buffer))
-                                );
-                            })
-                        );
+                        .andThen(storeInCacheEvaluation(executionContext, cacheId, response));
                 } else {
                     log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
@@ -140,6 +133,41 @@ public class CacheInvoker implements Invoker {
                     }
                 }
             });
+    }
+
+    private Completable storeInCacheEvaluation(ExecutionContext executionContext, String cacheId, Response response) {
+        return Completable.defer(() -> {
+            if (evaluate(executionContext, response, cachePolicyConfiguration.getResponseCondition())) {
+                final var httpHeaders = new HttpHeaders();
+                response.headers().forEach(entry -> httpHeaders.add(entry.getKey(), entry.getValue()));
+                final var status = response.status();
+                return response.onBody(body -> body.doOnSuccess(buffer -> storeInCache(cacheId, httpHeaders, status, buffer)));
+            } else {
+                log.debug(
+                    "Response for key {} not put in cache because of the status code {} or the condition",
+                    cacheId,
+                    response.status()
+                );
+                return response.onBody(body -> body);
+            }
+        });
+    }
+
+    private boolean evaluate(final ExecutionContext context, final Response response, final String condition) {
+        if (condition != null && !condition.isEmpty()) {
+            try {
+                context.getTemplateEngine().getTemplateContext().setVariable(UPSTREAM_RESPONSE, response);
+                return context.getTemplateEngine().getValue(condition, Boolean.class);
+            } catch (Exception e) {
+                log.error("Unable to evaluate the condition {}", e.getMessage(), e);
+                return false;
+            }
+        }
+        return is2xx(response);
+    }
+
+    private boolean is2xx(final Response response) {
+        return response.status() >= HttpStatusCode.OK_200 && response.status() < HttpStatusCode.MULTIPLE_CHOICES_300;
     }
 
     private void evictFromCache(String cacheId) {

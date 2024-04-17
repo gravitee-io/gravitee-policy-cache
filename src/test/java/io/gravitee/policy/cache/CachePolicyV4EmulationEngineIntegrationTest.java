@@ -18,6 +18,7 @@ package io.gravitee.policy.cache;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
+import static com.github.tomakehurst.wiremock.client.WireMock.serviceUnavailable;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -347,6 +348,74 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
         assertThat(firstEntry.getContent()).hasToString(Base64.getEncoder().encodeToString(RESPONSE_FROM_BACKEND_1.getBytes()));
+    }
+
+    @Test
+    @DisplayName("Should not use cache when backend respond with 503")
+    void shouldNotUseCache_BackendStatus503(HttpClient client) throws Exception {
+        wiremock.stubFor(get("/endpoint").willReturn(serviceUnavailable()));
+
+        final var obs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(503);
+                return response.toFlowable();
+            })
+            .test();
+
+        obs.await(1000, TimeUnit.MILLISECONDS);
+        obs.assertComplete().assertNoErrors();
+
+        final var secondObs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(503);
+                return response.toFlowable();
+            })
+            .test();
+
+        secondObs.await(1000, TimeUnit.MILLISECONDS);
+        secondObs.assertComplete().assertNoErrors();
+
+        // We should have called the backend twice
+        wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
+        DummyCacheResource.checkNumberOfCacheEntries(0);
+    }
+
+    @Test
+    @DisplayName("Should not use cache when backend respond with 503 and no response condition")
+    void shouldNotUseCache_BackendStatus503NoResponseCondition(HttpClient client) throws Exception {
+        wiremock.stubFor(get("/endpoint").willReturn(serviceUnavailable()));
+
+        final var obs = client
+            .rxRequest(HttpMethod.GET, "/test-no-response-condition")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(503);
+                return response.toFlowable();
+            })
+            .test();
+
+        obs.await(1000, TimeUnit.MILLISECONDS);
+        obs.assertComplete().assertNoErrors();
+
+        final var secondObs = client
+            .rxRequest(HttpMethod.GET, "/test-no-response-condition")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(503);
+                return response.toFlowable();
+            })
+            .test();
+
+        secondObs.await(1000, TimeUnit.MILLISECONDS);
+        secondObs.assertComplete().assertNoErrors();
+
+        // We should have called the backend twice
+        wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
+        DummyCacheResource.checkNumberOfCacheEntries(0);
     }
 
     private void performFirstCall(HttpClient client) throws InterruptedException {

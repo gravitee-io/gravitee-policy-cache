@@ -1,5 +1,5 @@
 {
-    "id": "apiv4-cache-policy",
+    "id": "apiv4-cache-policy-no-response-condition",
     "name": "apiv4-cache-policy",
     "description": "apiv4-cache-policy",
     "definitionVersion": "4.0.0",
@@ -9,7 +9,7 @@
             "type": "http",
             "paths": [
                 {
-                    "path": "/test"
+                    "path": "/test-no-response-condition"
                 }
             ],
             "entrypoints": [
@@ -55,8 +55,7 @@
                         "scope": "API",
                         "cacheName": "dummy-cache",
                         "key": "integration-test-cache",
-                        "methods": ["GET"],
-                        "responseCondition": "{#upstreamResponse.status == 200}"
+                        "methods": ["GET"]
                     }
                 }
             ],
