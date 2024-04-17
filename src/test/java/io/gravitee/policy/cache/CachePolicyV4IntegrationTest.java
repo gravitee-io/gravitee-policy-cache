@@ -24,7 +24,9 @@ import io.gravitee.plugin.entrypoint.EntrypointConnectorPlugin;
 import io.gravitee.plugin.entrypoint.http.proxy.HttpProxyEntrypointConnectorFactory;
 import java.util.Map;
 
-@DeployApi("/io/gravitee/policy/cache/integration/cacheV4.json")
+@DeployApi(
+    { "/io/gravitee/policy/cache/integration/cacheV4.json", "/io/gravitee/policy/cache/integration/cacheV4NoResponseCondition.json" }
+)
 public class CachePolicyV4IntegrationTest extends CachePolicyV4EmulationEngineIntegrationTest {
 
     @Override

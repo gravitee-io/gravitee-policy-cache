@@ -1,9 +1,9 @@
 {
-    "id": "my-api",
+    "id": "my-api-no-response-condition",
     "name": "my-api",
     "gravitee": "2.0.0",
     "proxy": {
-        "context_path": "/test",
+        "context_path": "/test-no-response-condition",
         "endpoints": [
             {
                 "name": "default",
@@ -34,8 +34,7 @@
                         "scope": "API",
                         "cacheName": "dummy-cache",
                         "key": "integration-test-cache",
-                        "methods": ["GET"],
-                        "responseCondition": "{#upstreamResponse.status == 200}"
+                        "methods": ["GET"]
                     }
                 }
             ],
