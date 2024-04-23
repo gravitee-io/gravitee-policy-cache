@@ -23,6 +23,7 @@ import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.http.HttpHeaderNames;
+import io.gravitee.gateway.reactive.api.context.ContextAttributes;
 import io.gravitee.gateway.reactive.api.context.ExecutionContext;
 import io.gravitee.gateway.reactive.api.context.HttpExecutionContext;
 import io.gravitee.gateway.reactive.api.context.HttpRequest;
@@ -219,13 +220,11 @@ public class CacheInvoker implements Invoker {
 
         switch (cachePolicyConfiguration.getScope()) {
             case APPLICATION:
-                sb.append((String) executionContext.getAttribute(io.gravitee.gateway.api.ExecutionContext.ATTR_API)).append(keySeparator);
-                sb
-                    .append((String) executionContext.getAttribute(io.gravitee.gateway.api.ExecutionContext.ATTR_APPLICATION))
-                    .append(keySeparator);
+                sb.append((String) executionContext.getAttribute(ContextAttributes.ATTR_API)).append(keySeparator);
+                sb.append((String) executionContext.getAttribute(ContextAttributes.ATTR_APPLICATION)).append(keySeparator);
                 break;
             case API:
-                sb.append((String) executionContext.getAttribute(io.gravitee.gateway.api.ExecutionContext.ATTR_API)).append(keySeparator);
+                sb.append((String) executionContext.getAttribute(ContextAttributes.ATTR_API)).append(keySeparator);
                 break;
         }
 
@@ -269,7 +268,7 @@ public class CacheInvoker implements Invoker {
         return timeToLive;
     }
 
-    public static long timeToLiveFromResponse(HttpHeaders httpHeaders) {
+    public long timeToLiveFromResponse(HttpHeaders httpHeaders) {
         long timeToLive = -1;
         String cacheControlHeader = Optional
             .ofNullable(httpHeaders.get(HttpHeaderNames.CACHE_CONTROL))
