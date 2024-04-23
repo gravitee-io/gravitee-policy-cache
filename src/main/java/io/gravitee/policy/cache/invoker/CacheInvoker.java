@@ -262,7 +262,7 @@ public class CacheInvoker implements Invoker {
             timeToLive = timeToLiveFromResponse(httpHeaders);
         }
 
-        if (timeToLive != -1 && cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
+        if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
             timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
         }
 
