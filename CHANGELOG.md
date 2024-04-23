@@ -1,3 +1,11 @@
+## [2.0.6](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.5...2.0.6) (2024-04-23)
+
+
+### Bug Fixes
+
+* **cache:** cache invoker and cache policy v4 tests added ([f8dd257](https://github.com/gravitee-io/gravitee-policy-cache/commit/f8dd257df20c33f7dcf110cb4136e046cb67291d))
+* **cache:** resolve ttl based on the cache policy config ([8739ac1](https://github.com/gravitee-io/gravitee-policy-cache/commit/8739ac11919dd80699f3641d3eeb19044111fdb3))
+
 ## [2.0.5](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.4...2.0.5) (2024-04-17)
 
 
