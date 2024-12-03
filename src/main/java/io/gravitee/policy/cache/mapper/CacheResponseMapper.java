@@ -16,9 +16,10 @@
 package io.gravitee.policy.cache.mapper;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonFactoryBuilder;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.gravitee.gateway.api.buffer.Buffer;
@@ -36,6 +37,11 @@ public class CacheResponseMapper extends ObjectMapper {
     private SerializationMode serializationMode = null;
 
     public CacheResponseMapper() {
+        super(
+            new JsonFactoryBuilder()
+                .streamReadConstraints(StreamReadConstraints.builder().maxStringLength(Integer.MAX_VALUE).build())
+                .build()
+        );
         registerModule(new BufferModule());
 
         enable(SerializationFeature.INDENT_OUTPUT);
