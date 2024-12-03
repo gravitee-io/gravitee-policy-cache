@@ -1,3 +1,10 @@
+## [2.0.7](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.6...2.0.7) (2024-12-03)
+
+
+### Bug Fixes
+
+* increase maxStringLength for ObjectMapper to max int to allow caching large payload ([e0afc1e](https://github.com/gravitee-io/gravitee-policy-cache/commit/e0afc1e76bb757b1e19c0d0b39852eaa278b8136))
+
 ## [2.0.6](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.5...2.0.6) (2024-04-23)
 
 
