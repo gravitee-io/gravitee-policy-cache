@@ -1,3 +1,10 @@
+# [2.1.0-alpha.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.7...2.1.0-alpha.1) (2025-11-07)
+
+
+### Features
+
+* enable for MCP Proxy API ([6518f95](https://github.com/gravitee-io/gravitee-policy-cache/commit/6518f956bfb5e96d55709c1a64192ec09d4d3d88))
+
 ## [2.0.7](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.6...2.0.7) (2024-12-03)
 
 
