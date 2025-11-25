@@ -15,17 +15,8 @@
  */
 package io.gravitee.policy.v3.cache;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.util.LinkedMultiValueMap;
@@ -90,8 +81,7 @@ public class CachePolicyV3Test {
 
     @Test
     public void should_usecachecontrol_smaxage() {
-        final HttpHeaders headers = HttpHeaders
-            .create()
+        final HttpHeaders headers = HttpHeaders.create()
             .add(HttpHeaderNames.CACHE_CONTROL, "max-age=600, no-cache, no-store, smax-age=300")
             .add(HttpHeaderNames.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
 
@@ -103,8 +93,7 @@ public class CachePolicyV3Test {
 
     @Test
     public void should_usecachecontrol_maxage() {
-        final HttpHeaders headers = HttpHeaders
-            .create()
+        final HttpHeaders headers = HttpHeaders.create()
             .add(HttpHeaderNames.CACHE_CONTROL, "max-age=600, no-cache, no-store")
             .add(HttpHeaderNames.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
 
@@ -116,8 +105,7 @@ public class CachePolicyV3Test {
 
     @Test
     public void should_usecachecontrol_expires_past() {
-        final HttpHeaders headers = HttpHeaders
-            .create()
+        final HttpHeaders headers = HttpHeaders.create()
             .add(HttpHeaderNames.CACHE_CONTROL, "no-cache, no-store")
             .add(HttpHeaderNames.EXPIRES, "Thu, 01 Dec 1994 16:00:00 GMT");
 

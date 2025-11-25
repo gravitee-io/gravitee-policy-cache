@@ -17,11 +17,7 @@ package io.gravitee.policy.cache;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.util.LinkedMultiValueMap;
@@ -101,8 +97,10 @@ public class CachePolicyTest {
         cachePolicy.onRequest(httpExecutionContext);
 
         verify(httpExecutionContext, never()).interruptWith(any());
-        verify(httpExecutionContext, times(1))
-            .setInternalAttribute(eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER), any(CacheInvoker.class));
+        verify(httpExecutionContext, times(1)).setInternalAttribute(
+            eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER),
+            any(CacheInvoker.class)
+        );
     }
 
     @Test
@@ -116,8 +114,10 @@ public class CachePolicyTest {
         cachePolicy.onRequest(httpExecutionContext);
 
         verify(httpExecutionContext, never()).interruptWith(any());
-        verify(httpExecutionContext, never())
-            .setInternalAttribute(eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER), any(CacheInvoker.class));
+        verify(httpExecutionContext, never()).setInternalAttribute(
+            eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER),
+            any(CacheInvoker.class)
+        );
     }
 
     @Test
@@ -139,8 +139,10 @@ public class CachePolicyTest {
         cachePolicy.onRequest(httpExecutionContext);
 
         verify(httpExecutionContext, never()).interruptWith(any());
-        verify(httpExecutionContext, times(1))
-            .setInternalAttribute(eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER), any(CacheInvoker.class));
+        verify(httpExecutionContext, times(1)).setInternalAttribute(
+            eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER),
+            any(CacheInvoker.class)
+        );
     }
 
     @Test
@@ -155,8 +157,10 @@ public class CachePolicyTest {
         cachePolicy.onRequest(httpExecutionContext);
 
         verify(httpExecutionContext, never()).interruptWith(any());
-        verify(httpExecutionContext, never())
-            .setInternalAttribute(eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER), any(CacheInvoker.class));
+        verify(httpExecutionContext, never()).setInternalAttribute(
+            eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER),
+            any(CacheInvoker.class)
+        );
     }
 
     @Test
