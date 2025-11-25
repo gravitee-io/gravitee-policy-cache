@@ -16,9 +16,9 @@
 package io.gravitee.policy.cache.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.gravitee.common.buffer.netty.BufferFactoryImpl;
 import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.gateway.api.buffer.BufferFactory;
-import io.gravitee.gateway.buffer.netty.BufferFactoryImpl;
 import io.gravitee.policy.cache.CacheResponse;
 import io.gravitee.policy.cache.configuration.SerializationMode;
 import org.junit.jupiter.api.Assertions;
@@ -56,15 +56,15 @@ class CacheResponseMapperTest {
         Assertions.assertEquals(
             responseAsString,
             "{\n" +
-            "  \"status\" : 200,\n" +
-            "  \"headers\" : {\n" +
-            "    \"Authentication\" : [ \"Bearer: hackathon\" ],\n" +
-            "    \"Content-Type\" : [ \"application/json\" ]\n" +
-            "  },\n" +
-            "  \"content\" : {\n" +
-            "    \"buffer\" : \"foobar\"\n" +
-            "  }\n" +
-            "}"
+                "  \"status\" : 200,\n" +
+                "  \"headers\" : {\n" +
+                "    \"Authentication\" : [ \"Bearer: hackathon\" ],\n" +
+                "    \"Content-Type\" : [ \"application/json\" ]\n" +
+                "  },\n" +
+                "  \"content\" : {\n" +
+                "    \"buffer\" : \"foobar\"\n" +
+                "  }\n" +
+                "}"
         );
     }
 
@@ -74,15 +74,15 @@ class CacheResponseMapperTest {
 
         CacheResponse response = cacheResponseMapper.readValue(
             "{\n" +
-            "  \"status\" : 200,\n" +
-            "  \"headers\" : {\n" +
-            "    \"Authentication\" : [ \"Bearer: hackathon\" ],\n" +
-            "    \"Content-Type\" : [ \"application/json\" ]\n" +
-            "  },\n" +
-            "  \"content\" : {\n" +
-            "    \"buffer\" : \"foobar\"\n" +
-            "  }\n" +
-            "}",
+                "  \"status\" : 200,\n" +
+                "  \"headers\" : {\n" +
+                "    \"Authentication\" : [ \"Bearer: hackathon\" ],\n" +
+                "    \"Content-Type\" : [ \"application/json\" ]\n" +
+                "  },\n" +
+                "  \"content\" : {\n" +
+                "    \"buffer\" : \"foobar\"\n" +
+                "  }\n" +
+                "}",
             CacheResponse.class
         );
 

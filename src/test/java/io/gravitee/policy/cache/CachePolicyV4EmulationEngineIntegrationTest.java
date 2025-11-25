@@ -15,11 +15,7 @@
  */
 package io.gravitee.policy.cache;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.ok;
-import static com.github.tomakehurst.wiremock.client.WireMock.serviceUnavailable;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.gravitee.apim.gateway.tests.sdk.AbstractPolicyTest;
@@ -116,15 +112,12 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
                 return s;
             });
 
-            performFirstCall(
-                client,
-                () -> {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (Exception ignored) {}
-                    testScheduler.triggerActions();
-                }
-            );
+            performFirstCall(client, () -> {
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception ignored) {}
+                testScheduler.triggerActions();
+            });
 
             RxJavaPlugins.reset();
 
