@@ -1,3 +1,16 @@
+# [3.0.0-alpha.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.1.0-alpha.1...3.0.0-alpha.1) (2025-11-26)
+
+
+### Features
+
+* update to the latest version 4.10 of apim ([b4aa27c](https://github.com/gravitee-io/gravitee-policy-cache/commit/b4aa27c9411e9f1a0eb344b36320a819fcc472c0))
+
+
+### BREAKING CHANGES
+
+* The policy has been updated to use the latest APIM version and is now compatible
+only with APIM 4.10 and above
+
 # [2.1.0-alpha.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.7...2.1.0-alpha.1) (2025-11-07)
 
 
