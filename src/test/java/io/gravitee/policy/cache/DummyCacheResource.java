@@ -18,6 +18,7 @@ package io.gravitee.policy.cache;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.gateway.api.ExecutionContext;
 import io.gravitee.gateway.reactive.api.context.GenericExecutionContext;
+import io.gravitee.gateway.reactive.api.context.base.BaseExecutionContext;
 import io.gravitee.policy.cache.configuration.SerializationMode;
 import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.policy.cache.resource.CacheElement;
@@ -71,6 +72,11 @@ public class DummyCacheResource extends CacheResource {
 
     @Override
     public Cache getCache(GenericExecutionContext genericExecutionContext) {
+        return getDummyCacheInstance();
+    }
+
+    @Override
+    public Cache getCache(BaseExecutionContext baseExecutionContext) {
         return getDummyCacheInstance();
     }
 

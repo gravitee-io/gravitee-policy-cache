@@ -23,11 +23,7 @@ import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.http.HttpHeaderNames;
-import io.gravitee.gateway.reactive.api.context.ContextAttributes;
-import io.gravitee.gateway.reactive.api.context.ExecutionContext;
-import io.gravitee.gateway.reactive.api.context.HttpExecutionContext;
-import io.gravitee.gateway.reactive.api.context.HttpRequest;
-import io.gravitee.gateway.reactive.api.context.Response;
+import io.gravitee.gateway.reactive.api.context.*;
 import io.gravitee.gateway.reactive.api.invoker.Invoker;
 import io.gravitee.policy.cache.CacheAction;
 import io.gravitee.policy.cache.CacheControl;
@@ -45,7 +41,10 @@ import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import java.time.Instant;
-import java.util.*;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -85,8 +84,7 @@ public class CacheInvoker implements Invoker {
         var cacheId = hash(executionContext);
         log.debug("Looking for element in cache with the key {}", cacheId);
 
-        return Single
-            .fromCallable(() -> Optional.ofNullable(cache.get(cacheId)))
+        return Single.fromCallable(() -> Optional.ofNullable(cache.get(cacheId)))
             .subscribeOn(Schedulers.io())
             .flatMapCompletable(optElt -> {
                 Response response = executionContext.response();
@@ -105,8 +103,9 @@ public class CacheInvoker implements Invoker {
                         );
                     }
 
-                    return this.delegateInvoker.invoke(executionContext)
-                        .andThen(storeInCacheEvaluation(executionContext, cacheId, response));
+                    return this.delegateInvoker.invoke(executionContext).andThen(
+                        storeInCacheEvaluation(executionContext, cacheId, response)
+                    );
                 } else {
                     log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
@@ -172,8 +171,7 @@ public class CacheInvoker implements Invoker {
     }
 
     private void evictFromCache(String cacheId) {
-        Completable
-            .fromAction(() -> cache.evict(cacheId))
+        Completable.fromAction(() -> cache.evict(cacheId))
             .subscribeOn(Schedulers.io())
             .doOnComplete(() -> log.debug("Element {} evicted from the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
@@ -184,19 +182,18 @@ public class CacheInvoker implements Invoker {
     }
 
     private void storeInCache(String cacheId, HttpHeaders httpHeaders, int status, Buffer buffer) {
-        Completable
-            .fromAction(() -> {
-                final var resp = new CacheResponse();
-                Buffer content = hasBinaryContentType(httpHeaders) ? Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes())) : buffer;
-                resp.setContent(content);
-                resp.setStatus(status);
-                resp.setHeaders(httpHeaders);
+        Completable.fromAction(() -> {
+            final var resp = new CacheResponse();
+            Buffer content = hasBinaryContentType(httpHeaders) ? Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes())) : buffer;
+            resp.setContent(content);
+            resp.setStatus(status);
+            resp.setHeaders(httpHeaders);
 
-                long timeToLive = resolveTimeToLive(httpHeaders);
-                CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
-                element.setTimeToLive((int) timeToLive);
-                cache.put(element);
-            })
+            long timeToLive = resolveTimeToLive(httpHeaders);
+            CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
+            element.setTimeToLive((int) timeToLive);
+            cache.put(element);
+        })
             .subscribeOn(Schedulers.io())
             .doOnComplete(() -> log.debug("Element {} stored into the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
@@ -270,8 +267,7 @@ public class CacheInvoker implements Invoker {
 
     public long timeToLiveFromResponse(HttpHeaders httpHeaders) {
         long timeToLive = -1;
-        String cacheControlHeader = Optional
-            .ofNullable(httpHeaders.get(HttpHeaderNames.CACHE_CONTROL))
+        String cacheControlHeader = Optional.ofNullable(httpHeaders.get(HttpHeaderNames.CACHE_CONTROL))
             .map(list -> list.get(0))
             .orElse(null);
         CacheControl cacheControl = CacheControlUtil.parseCacheControl(cacheControlHeader);
@@ -281,7 +277,9 @@ public class CacheInvoker implements Invoker {
         } else if (cacheControl != null && cacheControl.getMaxAge() != -1) {
             timeToLive = cacheControl.getMaxAge();
         } else {
-            String expiresHeader = Optional.ofNullable(httpHeaders.get(HttpHeaderNames.EXPIRES)).map(list -> list.get(0)).orElse(null);
+            String expiresHeader = Optional.ofNullable(httpHeaders.get(HttpHeaderNames.EXPIRES))
+                .map(list -> list.get(0))
+                .orElse(null);
             Instant expiresAt = ExpiresUtil.parseExpires(expiresHeader);
             if (expiresAt != null) {
                 long expiresInSeconds = (expiresAt.toEpochMilli() - System.currentTimeMillis()) / 1000;

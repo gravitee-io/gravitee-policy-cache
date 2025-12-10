@@ -23,7 +23,6 @@ import io.gravitee.gateway.reactive.api.context.InternalContextAttributes;
 import io.gravitee.gateway.reactive.api.context.MessageExecutionContext;
 import io.gravitee.gateway.reactive.api.invoker.Invoker;
 import io.gravitee.gateway.reactive.api.policy.Policy;
-import io.gravitee.gateway.reactive.core.context.interruption.InterruptionFailureException;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.cache.configuration.SerializationMode;
 import io.gravitee.policy.cache.invoker.CacheInvoker;
@@ -32,8 +31,6 @@ import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.reactivex.rxjava3.core.Completable;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 
 @Slf4j
@@ -63,16 +60,18 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
 
                 if (cacheResource == null) {
                     return ctx.interruptWith(
-                        new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500)
-                            .message("No cache has been defined with name " + cacheName)
+                        new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500).message(
+                            "No cache has been defined with name " + cacheName
+                        )
                     );
                 }
 
                 cache = cacheResource.getCache(ctx);
                 if (cache == null) {
                     return ctx.interruptWith(
-                        new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500)
-                            .message("No cache named [ " + cacheName + " ] has been found.")
+                        new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500).message(
+                            "No cache named [ " + cacheName + " ] has been found."
+                        )
                     );
                 }
 

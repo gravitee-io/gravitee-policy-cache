@@ -16,7 +16,6 @@
 package io.gravitee.policy.cache.util;
 
 import io.gravitee.policy.cache.CacheControl;
-import io.gravitee.policy.cache.util.CacheControlUtil;
 import org.junit.Assert;
 import org.junit.Test;
 
