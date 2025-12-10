@@ -86,12 +86,6 @@
         </dependency>
         <dependency>
             <groupId>io.gravitee.apim.gateway</groupId>
-            <artifactId>gravitee-apim-gateway-buffer</artifactId>
-            <version>${gravitee-apim.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.gravitee.apim.gateway</groupId>
             <artifactId>gravitee-apim-gateway-reactor</artifactId>
             <version>${gravitee-apim.version}</version>
             <scope>provided</scope>
