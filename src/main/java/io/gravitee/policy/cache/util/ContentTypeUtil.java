@@ -15,10 +15,10 @@
  */
 package io.gravitee.policy.cache.util;
 
-import io.gravitee.common.http.*;
 import io.gravitee.common.http.HttpHeaders;
-import io.gravitee.gateway.api.http.*;
-import java.util.*;
+import io.gravitee.common.http.MediaType;
+import io.gravitee.gateway.api.http.HttpHeaderNames;
+import java.util.Optional;
 
 /**
  * @author Wojciech BASZCZYK (wojciech.baszczyk at graviteesource.com)
@@ -30,8 +30,7 @@ public class ContentTypeUtil {
 
     public static boolean hasBinaryContentType(HttpHeaders httpHeaders) {
         if (httpHeaders != null) {
-            MediaType contentTypeMedia = Optional
-                .ofNullable(httpHeaders.get(HttpHeaderNames.CONTENT_TYPE))
+            MediaType contentTypeMedia = Optional.ofNullable(httpHeaders.get(HttpHeaderNames.CONTENT_TYPE))
                 .map(list -> list.get(0))
                 .map(MediaType::parseMediaType)
                 .orElse(MediaType.MEDIA_ALL);

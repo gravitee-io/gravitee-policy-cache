@@ -22,9 +22,9 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import io.gravitee.common.buffer.netty.BufferFactoryImpl;
 import io.gravitee.gateway.api.buffer.Buffer;
 import io.gravitee.gateway.api.buffer.BufferFactory;
-import io.gravitee.gateway.buffer.netty.BufferFactoryImpl;
 import io.gravitee.policy.cache.configuration.SerializationMode;
 import java.io.IOException;
 

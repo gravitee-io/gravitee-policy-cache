@@ -22,7 +22,7 @@
 
     <groupId>io.gravitee.policy</groupId>
     <artifactId>gravitee-policy-cache</artifactId>
-    <version>2.0.7</version>
+    <version>3.0.0-alpha.1</version>
 
     <name>Gravitee.io APIM - Policy - Caching</name>
     <description>Cache upstream responses (content, status and headers) to eliminate the need for subsequent calls to the back end.</description>
@@ -30,19 +30,14 @@
     <parent>
         <groupId>io.gravitee</groupId>
         <artifactId>gravitee-parent</artifactId>
-        <version>22.5.1</version>
+        <version>23.5.0</version>
     </parent>
 
     <properties>
-        <gravitee-bom.version>6.0.62</gravitee-bom.version>
-        <gravitee-gateway-api.version>3.0.0</gravitee-gateway-api.version>
-        <gravitee-common.version>2.1.1</gravitee-common.version>
-        <gravitee-policy-api.version>1.11.0</gravitee-policy-api.version>
-        <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
-        <gravitee-resource-cache-provider-api.version>1.4.0</gravitee-resource-cache-provider-api.version>
-        <gravitee-apim.version>4.0.0</gravitee-apim.version>
+        <!-- Gravitee dependencies for APIM -->
+        <gravitee-apim.version>4.10.0-alpha.1</gravitee-apim.version>
 
-        <maven-plugin-assembly.version>3.8.0</maven-plugin-assembly.version>
+        <!-- Maven plugins -->
         <maven-plugin-properties.version>1.2.1</maven-plugin-properties.version>
 
         <!-- Property used by the publication job in CI-->
@@ -53,26 +48,11 @@
         <dependencies>
             <!-- Import bom to properly inherit all dependencies -->
             <dependency>
-                <groupId>io.gravitee</groupId>
-                <artifactId>gravitee-bom</artifactId>
-                <version>${gravitee-bom.version}</version>
+                <groupId>io.gravitee.apim</groupId>
+                <artifactId>gravitee-apim-bom</artifactId>
+                <version>${gravitee-apim.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
-            </dependency>
-            <dependency>
-                <groupId>io.gravitee.policy</groupId>
-                <artifactId>gravitee-policy-api</artifactId>
-                <version>${gravitee-policy-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.gravitee.gateway</groupId>
-                <artifactId>gravitee-gateway-api</artifactId>
-                <version>${gravitee-gateway-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.gravitee.common</groupId>
-                <artifactId>gravitee-common</artifactId>
-                <version>${gravitee-common.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -92,27 +72,16 @@
         <dependency>
             <groupId>io.gravitee.resource</groupId>
             <artifactId>gravitee-resource-api</artifactId>
-            <version>${gravitee-resource-api.version}</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>io.gravitee.resource</groupId>
             <artifactId>gravitee-resource-cache-provider-api</artifactId>
-            <version>${gravitee-resource-cache-provider-api.version}</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>io.gravitee.common</groupId>
             <artifactId>gravitee-common</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.gravitee.apim.gateway</groupId>
-            <artifactId>gravitee-apim-gateway-buffer</artifactId>
-            <version>${gravitee-apim.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -121,13 +90,11 @@
             <version>${gravitee-apim.version}</version>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <scope>provided</scope>
         </dependency>
-
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -147,7 +114,6 @@
             <artifactId>junit-vintage-engine</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -158,7 +124,6 @@
             <artifactId>spring-test</artifactId>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>io.gravitee.apim.gateway</groupId>
             <artifactId>gravitee-apim-gateway-tests-sdk</artifactId>
@@ -211,7 +176,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>${maven-plugin-assembly.version}</version>
                 <configuration>
                     <appendAssemblyId>false</appendAssemblyId>
                     <descriptors>

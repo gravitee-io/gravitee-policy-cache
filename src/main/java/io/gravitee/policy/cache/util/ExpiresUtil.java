@@ -30,9 +30,9 @@ public final class ExpiresUtil {
 
     // The format is an absolute date and time as defined by HTTP-date in section 3.3.1;
     // it MUST be in RFC 1123 date format (example: Thu, 01 Dec 1994 16:00:00 GMT)
-    private static final DateTimeFormatter EXPIRES_HEADER_FORMATTER = DateTimeFormatter
-        .ofPattern("EEE, dd MMM yyyy HH:mm:ss z")
-        .withLocale(Locale.ENGLISH);
+    private static final DateTimeFormatter EXPIRES_HEADER_FORMATTER = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z").withLocale(
+        Locale.ENGLISH
+    );
 
     private ExpiresUtil() {}
 
