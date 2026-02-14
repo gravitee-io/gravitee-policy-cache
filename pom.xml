@@ -35,7 +35,7 @@
 
     <properties>
         <!-- Gravitee dependencies for APIM -->
-        <gravitee-apim.version>4.10.4</gravitee-apim.version>
+        <gravitee-apim.version>4.10.5</gravitee-apim.version>
 
         <!-- Maven plugins -->
         <maven-plugin-properties.version>1.3.0</maven-plugin-properties.version>
