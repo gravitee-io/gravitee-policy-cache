@@ -139,82 +139,75 @@ public class CachePolicyV3 {
             log.debug("Looking for element in cache with the key {}", cacheId);
 
             Vertx vertx = executionContext.getComponent(Vertx.class);
-            vertx.executeBlocking(
-                promise -> {
-                    Element elt = cache.get(cacheId);
-                    promise.complete(elt);
-                },
-                new io.vertx.core.Handler<AsyncResult<Element>>() {
-                    @Override
-                    public void handle(AsyncResult<Element> elementAsyncResult) {
-                        Element elt = elementAsyncResult.result();
-                        if (elt != null && action != CacheAction.REFRESH) {
-                            log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+            vertx
+                .executeBlocking(() -> cache.get(cacheId))
+                .onComplete(elementAsyncResult -> {
+                    Element elt = elementAsyncResult.result();
+                    if (elt != null && action != CacheAction.REFRESH) {
+                        log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
-                            try {
-                                CacheResponse cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
-                                Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
-                                    ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
-                                    : cacheResponse.getContent();
-                                cacheResponse.setContent(content);
-                                final ProxyConnection proxyConnection = new CacheProxyConnection(cacheResponse);
+                        try {
+                            CacheResponse cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
+                            Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
+                                ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
+                                : cacheResponse.getContent();
+                            cacheResponse.setContent(content);
+                            final ProxyConnection proxyConnection = new CacheProxyConnection(cacheResponse);
 
-                                // Ok, there is a value for this request in cache so send it through proxy connection
-                                connectionHandler.handle(proxyConnection);
+                            // Ok, there is a value for this request in cache so send it through proxy connection
+                            connectionHandler.handle(proxyConnection);
 
-                                // Plug underlying stream to connection stream
-                                stream.bodyHandler(proxyConnection::write).endHandler(aVoid -> proxyConnection.end());
-                            } catch (JsonProcessingException e) {
-                                log.error(
-                                    "Cannot deserialize element with key {}, invoke backend with invoker {}",
-                                    cacheId,
-                                    invoker.getClass().getName()
-                                );
-                            }
-
-                            // Resume the incoming request to handle content and end
-                            executionContext.request().resume();
-                        } else {
-                            if (action == CacheAction.REFRESH) {
-                                log.info(
-                                    "A refresh action has been received for key {}, invoke backend with invoker {}",
-                                    cacheId,
-                                    invoker.getClass().getName()
-                                );
-                            } else {
-                                log.debug("No element for key {}, invoke backend with invoker {}", cacheId, invoker.getClass().getName());
-                            }
-
-                            // No value, let's do the default invocation and cache result in response
-                            invoker.invoke(executionContext, stream, proxyConnection -> {
-                                log.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
-
-                                ProxyConnection cacheProxyConnection = new ProxyConnection() {
-                                    @Override
-                                    public ProxyConnection write(Buffer buffer) {
-                                        proxyConnection.write(buffer);
-                                        return this;
-                                    }
-
-                                    @Override
-                                    public void end() {
-                                        proxyConnection.end();
-                                    }
-
-                                    @Override
-                                    public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
-                                        return proxyConnection.responseHandler(
-                                            new CacheResponseHandler(cacheId, responseHandler, executionContext)
-                                        );
-                                    }
-                                };
-
-                                connectionHandler.handle(cacheProxyConnection);
-                            });
+                            // Plug underlying stream to connection stream
+                            stream.bodyHandler(proxyConnection::write).endHandler(aVoid -> proxyConnection.end());
+                        } catch (JsonProcessingException e) {
+                            log.error(
+                                "Cannot deserialize element with key {}, invoke backend with invoker {}",
+                                cacheId,
+                                invoker.getClass().getName()
+                            );
                         }
+
+                        // Resume the incoming request to handle content and end
+                        executionContext.request().resume();
+                    } else {
+                        if (action == CacheAction.REFRESH) {
+                            log.info(
+                                "A refresh action has been received for key {}, invoke backend with invoker {}",
+                                cacheId,
+                                invoker.getClass().getName()
+                            );
+                        } else {
+                            log.debug("No element for key {}, invoke backend with invoker {}", cacheId, invoker.getClass().getName());
+                        }
+
+                        // No value, let's do the default invocation and cache result in response
+                        invoker.invoke(executionContext, stream, proxyConnection -> {
+                            log.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
+
+                            ProxyConnection cacheProxyConnection = new ProxyConnection() {
+                                @Override
+                                public ProxyConnection write(Buffer buffer) {
+                                    proxyConnection.write(buffer);
+                                    return this;
+                                }
+
+                                @Override
+                                public void end() {
+                                    proxyConnection.end();
+                                }
+
+                                @Override
+                                public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
+                                    return proxyConnection.responseHandler(
+                                        new CacheResponseHandler(cacheId, responseHandler, executionContext)
+                                    );
+                                }
+                            };
+
+                            connectionHandler.handle(cacheProxyConnection);
+                        });
                     }
-                }
-            );
+                });
         }
     }
 
@@ -288,27 +281,24 @@ public class CachePolicyV3 {
                     Buffer buffer = hasBinaryContentType(headers) ? Buffer.buffer(Base64.getEncoder().encode(content.getBytes())) : content;
                     response.setContent(buffer);
                     Vertx vertx = executionContext.getComponent(Vertx.class);
-                    vertx.executeBlocking(
-                        promise -> {
-                            long timeToLive = -1;
-                            if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
-                                timeToLive = resolveTimeToLive(proxyResponse);
-                            }
-                            if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
-                                timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
-                            }
+                    vertx.executeBlocking(() -> {
+                        long timeToLive = -1;
+                        if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
+                            timeToLive = resolveTimeToLive(proxyResponse);
+                        }
+                        if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
+                            timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
+                        }
 
-                            try {
-                                CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
-                                element.setTimeToLive((int) timeToLive);
-                                cache.put(element);
-                            } catch (JsonProcessingException e) {
-                                log.error("Cannot serialize element with key {}", cacheId);
-                            }
-                            promise.complete();
-                        },
-                        objectAsyncResult -> {}
-                    );
+                        try {
+                            CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
+                            element.setTimeToLive((int) timeToLive);
+                            cache.put(element);
+                        } catch (JsonProcessingException e) {
+                            log.error("Cannot serialize element with key {}", cacheId);
+                        }
+                        return null;
+                    });
                 });
 
                 return this;
