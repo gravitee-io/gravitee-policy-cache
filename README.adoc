@@ -35,7 +35,8 @@ policy configuration `cacheName`, as described below.
 
 | 1.x            | 3.x
 | 2.x            | 4.0 to 4.9
-| 3.x            | 4.10 to latest
+| 3.x            | 4.10 to 4.11
+| 4.x            | 4.12 to latest
 |===
 
 == Configuration
