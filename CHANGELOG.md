@@ -1,3 +1,15 @@
+# [4.0.0-alpha.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/3.0.0...4.0.0-alpha.1) (2026-04-03)
+
+
+### Features
+
+* upgrade to Vertx5 ([0ba7050](https://github.com/gravitee-io/gravitee-policy-cache/commit/0ba7050780162b030528a5e9140c389a19b9b0ca))
+
+
+### BREAKING CHANGES
+
+* upgrade to vertx5
+
 # [3.0.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.7...3.0.0) (2025-12-11)
 
 
