@@ -84,55 +84,55 @@ public class CacheInvoker implements Invoker {
         var cacheId = hash(executionContext);
         log.debug("Looking for element in cache with the key {}", cacheId);
 
-        return Single.<Optional<Element>>create(emitter ->
-            cache
-                .getAsync(cacheId)
-                .onComplete(ar -> {
-                    if (ar.succeeded()) {
-                        emitter.onSuccess(Optional.ofNullable(ar.result()));
+        return Single.fromCompletionStage(cache.getAsync(cacheId).map(Optional::ofNullable).toCompletionStage()).flatMapCompletable(
+            optElt -> {
+                Response response = executionContext.response();
+                if (optElt.isEmpty() || action == CacheAction.REFRESH) {
+                    if (action == CacheAction.REFRESH) {
+                        log.info(
+                            "A refresh action has been received for key {}, invoke backend with invoker {}",
+                            cacheId,
+                            this.delegateInvoker.getClass().getName()
+                        );
                     } else {
-                        emitter.onError(ar.cause());
+                        log.debug(
+                            "No element for key {}, invoke backend with invoker {}",
+                            cacheId,
+                            this.delegateInvoker.getClass().getName()
+                        );
                     }
-                })
-        ).flatMapCompletable(optElt -> {
-            Response response = executionContext.response();
-            if (optElt.isEmpty() || action == CacheAction.REFRESH) {
-                if (action == CacheAction.REFRESH) {
-                    log.info(
-                        "A refresh action has been received for key {}, invoke backend with invoker {}",
-                        cacheId,
-                        this.delegateInvoker.getClass().getName()
+
+                    return this.delegateInvoker.invoke(executionContext).andThen(
+                        storeInCacheEvaluation(executionContext, cacheId, response)
                     );
                 } else {
-                    log.debug("No element for key {}, invoke backend with invoker {}", cacheId, this.delegateInvoker.getClass().getName());
-                }
+                    log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
 
-                return this.delegateInvoker.invoke(executionContext).andThen(storeInCacheEvaluation(executionContext, cacheId, response));
-            } else {
-                log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
-
-                var elt = optElt.get();
-                try {
-                    var cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
-                    response.status(cacheResponse.getStatus());
-                    if (cacheResponse.getHeaders() != null) {
-                        cacheResponse.getHeaders().forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
+                    var elt = optElt.get();
+                    try {
+                        var cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
+                        response.status(cacheResponse.getStatus());
+                        if (cacheResponse.getHeaders() != null) {
+                            cacheResponse
+                                .getHeaders()
+                                .forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
+                        }
+                        Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
+                            ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
+                            : cacheResponse.getContent();
+                        return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(content)));
+                    } catch (JsonProcessingException e) {
+                        log.warn(
+                            "Cannot deserialize element with key {}, invoke backend with invoker {}",
+                            cacheId,
+                            delegateInvoker.getClass().getName()
+                        );
+                        evictFromCache(cacheId);
+                        return this.delegateInvoker.invoke(executionContext);
                     }
-                    Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
-                        ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
-                        : cacheResponse.getContent();
-                    return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(content)));
-                } catch (JsonProcessingException e) {
-                    log.warn(
-                        "Cannot deserialize element with key {}, invoke backend with invoker {}",
-                        cacheId,
-                        delegateInvoker.getClass().getName()
-                    );
-                    evictFromCache(cacheId);
-                    return this.delegateInvoker.invoke(executionContext);
                 }
             }
-        });
+        );
     }
 
     private Completable storeInCacheEvaluation(ExecutionContext executionContext, String cacheId, Response response) {
@@ -171,17 +171,7 @@ public class CacheInvoker implements Invoker {
     }
 
     private void evictFromCache(String cacheId) {
-        Completable.create(emitter ->
-            cache
-                .evictAsync(cacheId)
-                .onComplete(ar -> {
-                    if (ar.succeeded()) {
-                        emitter.onComplete();
-                    } else {
-                        emitter.onError(ar.cause());
-                    }
-                })
-        )
+        Completable.fromCompletionStage(cache.evictAsync(cacheId).toCompletionStage())
             .doOnComplete(() -> log.debug("Element {} evicted from the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
                 log.warn("Element {} can't be evicted from the cache {}", cacheId, cache.getName(), err);
@@ -201,17 +191,7 @@ public class CacheInvoker implements Invoker {
             long timeToLive = resolveTimeToLive(httpHeaders);
             CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
             element.setTimeToLive((int) timeToLive);
-            return Completable.create(emitter ->
-                cache
-                    .putAsync(element)
-                    .onComplete(ar -> {
-                        if (ar.succeeded()) {
-                            emitter.onComplete();
-                        } else {
-                            emitter.onError(ar.cause());
-                        }
-                    })
-            );
+            return Completable.fromCompletionStage(cache.putAsync(element).toCompletionStage());
         })
             .doOnComplete(() -> log.debug("Element {} stored into the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
