@@ -84,8 +84,8 @@ public class CacheInvoker implements Invoker {
         var cacheId = hash(executionContext);
         log.debug("Looking for element in cache with the key {}", cacheId);
 
-        return Single.fromCallable(() -> Optional.ofNullable(cache.get(cacheId)))
-            .subscribeOn(Schedulers.io())
+        return Single.fromCompletionStage(cache.getAsync(cacheId).map(Optional::ofNullable).toCompletionStage())
+            .observeOn(Schedulers.io()) // Deserialize on IO thread to avoid blocking event loop with large payloads
             .flatMapCompletable(optElt -> {
                 Response response = executionContext.response();
                 if (optElt.isEmpty() || action == CacheAction.REFRESH) {
@@ -171,8 +171,7 @@ public class CacheInvoker implements Invoker {
     }
 
     private void evictFromCache(String cacheId) {
-        Completable.fromAction(() -> cache.evict(cacheId))
-            .subscribeOn(Schedulers.io())
+        Completable.fromCompletionStage(cache.evictAsync(cacheId).toCompletionStage())
             .doOnComplete(() -> log.debug("Element {} evicted from the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
                 log.warn("Element {} can't be evicted from the cache {}", cacheId, cache.getName(), err);
@@ -182,7 +181,8 @@ public class CacheInvoker implements Invoker {
     }
 
     private void storeInCache(String cacheId, HttpHeaders httpHeaders, int status, Buffer buffer) {
-        Completable.fromAction(() -> {
+        // Serialize on IO scheduler to avoid blocking the event loop with large payloads
+        Single.fromCallable(() -> {
             final var resp = new CacheResponse();
             Buffer content = hasBinaryContentType(httpHeaders) ? Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes())) : buffer;
             resp.setContent(content);
@@ -192,9 +192,10 @@ public class CacheInvoker implements Invoker {
             long timeToLive = resolveTimeToLive(httpHeaders);
             CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
             element.setTimeToLive((int) timeToLive);
-            cache.put(element);
+            return element;
         })
             .subscribeOn(Schedulers.io())
+            .flatMapCompletable(element -> Completable.fromCompletionStage(cache.putAsync(element).toCompletionStage()))
             .doOnComplete(() -> log.debug("Element {} stored into the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
                 log.warn("Element {} can't be stored into the cache {}", cacheId, cache.getName(), err);
