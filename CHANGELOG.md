@@ -1,3 +1,10 @@
+# [4.0.0-alpha.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/4.0.0-alpha.1...4.0.0-alpha.2) (2026-04-14)
+
+
+### Features
+
+* **cache-policy:** use async Cache API (APIM-13557) ([9ddb1a3](https://github.com/gravitee-io/gravitee-policy-cache/commit/9ddb1a3c13a3c9b4ab609a6eb0cc06c1ff7067e4))
+
 # [4.0.0-alpha.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/3.0.0...4.0.0-alpha.1) (2026-04-03)
 
 
