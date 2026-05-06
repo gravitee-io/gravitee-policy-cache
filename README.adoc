@@ -23,7 +23,16 @@ You can use the `cache` policy to cache upstream responses (content, status and 
 
 This policy is based on a _cache resource_, which aligns the underlying cache system with the API lifecycle (stop / start).
 
-Consumers can bypass the cache by adding a `cache=BY_PASS` query parameter or by providing a `X-Gravitee-Cache=BY_PASS` HTTP header.
+Consumers can influence cache behaviour at request time using the `X-Gravitee-Cache` HTTP header or the `?cache=` query parameter:
+
+* `BY_PASS`: skips the cache entirely and forwards the request directly to the backend. The response is *not* stored. +
+  Example: `X-Gravitee-Cache: BY_PASS` or `?cache=BY_PASS`
+* `REFRESH`: ignores any existing cached entry, re-invokes the backend, and overwrites the cache with the fresh response. +
+  Example: `X-Gravitee-Cache: REFRESH` or `?cache=REFRESH`
+
+WARNING: The `REFRESH` action allows any client to force a cache reset on demand, which can cause unexpected upstream load and facilitate cache poisoning. Use the `allowRefreshAction` configuration option to disable it for public APIs.
+
+NOTE: `allowRefreshAction` defaults to `true` for backward compatibility. It is strongly recommended to explicitly set `allowRefreshAction: false` for public APIs unless clients have a legitimate need to trigger cache refreshes.
 
 NOTE: If no cache resource is defined for the policy, or it is not well configured, the API will not be deployed. The resource name is specified in the
 policy configuration `cacheName`, as described below.
@@ -52,6 +61,7 @@ You can configure the policy with the following options:
 |responseCondition||Add an extra condition (with Expression Language) based on the response to activate cache. For example use `{#upstreamResponse.status == 200}` to only cache 200 responses status. By default, all 2xx are cached.|string|
 |useResponseCacheHeaders||Time to live based on 'Cache-Control' and / or 'Expires' headers from backend response|boolean|false
 |scope|X|Cached response can be set for a single consumer (application) or for all applications.<br><strong>WARNING:</strong> Please be aware that by using an \"API\" scope, data will be shared between all consumers !|API / APPLICATION|APPLICATION
+|allowRefreshAction||When disabled, `REFRESH` requests from clients are silently ignored and treated as normal cache lookups. Disable to prevent unauthorized cache resets.|boolean|true
 
 |===
 
@@ -93,7 +103,8 @@ TIP: To learn more about the Gravitee Expression Language, see the *API Publishe
     "useResponseCacheHeaders": false,
     "scope": "APPLICATION",
     "methods": ["POST"],
-    "responseCondition": "{#upstreamResponse.status == 201}"
+    "responseCondition": "{#upstreamResponse.status == 201}",
+    "allowRefreshAction": false
 }
 ----
 

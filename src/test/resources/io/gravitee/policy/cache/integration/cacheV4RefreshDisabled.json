@@ -1,0 +1,77 @@
+{
+    "id": "apiv4-cache-policy-refresh-disabled",
+    "name": "apiv4-cache-policy-refresh-disabled",
+    "description": "apiv4-cache-policy-refresh-disabled",
+    "definitionVersion": "4.0.0",
+    "type": "proxy",
+    "listeners": [
+        {
+            "type": "http",
+            "paths": [
+                {
+                    "path": "/test-refresh-disabled"
+                }
+            ],
+            "entrypoints": [
+                {
+                    "type": "http-proxy"
+                }
+            ]
+        }
+    ],
+    "endpointGroups": [
+        {
+            "name": "default",
+            "type": "http-proxy",
+            "endpoints": [
+                {
+                    "name": "default-endpoint",
+                    "type": "http-proxy",
+                    "configuration": {
+                        "target": "http://localhost:8080/endpoint"
+                    }
+                }
+            ]
+        }
+    ],
+    "flows": [
+        {
+            "name": "cache-flow-refresh-disabled",
+            "enabled": true,
+            "selectors": [
+                {
+                    "type": "http",
+                    "path": "/",
+                    "pathOperator": "STARTS_WITH"
+                }
+            ],
+            "request": [
+                {
+                    "name": "Cache",
+                    "description": "test cache policy with V4 API - refresh disabled",
+                    "enabled": true,
+                    "policy": "cache",
+                    "configuration": {
+                        "scope": "API",
+                        "cacheName": "dummy-cache",
+                        "key": "integration-test-cache-refresh-disabled",
+                        "methods": ["GET"],
+                        "responseCondition": "{#upstreamResponse.status == 200}",
+                        "allowRefreshAction": false
+                    }
+                }
+            ],
+            "response": [],
+            "subscribe": [],
+            "publish": []
+        }
+    ],
+    "resources": [
+        {
+            "name": "dummy-cache",
+            "enabled": true,
+            "type": "dummy-cache",
+            "configuration": {}
+        }
+    ]
+}

@@ -1,0 +1,54 @@
+{
+    "id": "my-api-refresh-disabled",
+    "name": "my-api-refresh-disabled",
+    "gravitee": "2.0.0",
+    "proxy": {
+        "context_path": "/test-refresh-disabled",
+        "endpoints": [
+            {
+                "name": "default",
+                "target": "http://localhost:8080/endpoint",
+                "http": {
+                    "connectTimeout": 3000,
+                    "readTimeout": 60000
+                }
+            }
+        ]
+    },
+    "flows": [
+        {
+            "name": "flow-1",
+            "methods": ["GET"],
+            "enabled": true,
+            "path-operator": {
+                "path": "/",
+                "operator": "STARTS_WITH"
+            },
+            "pre": [
+                {
+                    "name": "Cache",
+                    "description": "",
+                    "enabled": true,
+                    "policy": "cache",
+                    "configuration": {
+                        "scope": "API",
+                        "cacheName": "dummy-cache",
+                        "key": "integration-test-cache-refresh-disabled",
+                        "methods": ["GET"],
+                        "responseCondition": "{#upstreamResponse.status == 200}",
+                        "allowRefreshAction": false
+                    }
+                }
+            ],
+            "post": []
+        }
+    ],
+    "resources": [
+        {
+            "name": "dummy-cache",
+            "enabled": true,
+            "type": "dummy-cache",
+            "configuration": {}
+        }
+    ]
+}

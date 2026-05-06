@@ -27,6 +27,7 @@ import io.gravitee.gateway.reactive.api.context.InternalContextAttributes;
 import io.gravitee.gateway.reactive.api.context.MessageExecutionContext;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.cache.invoker.CacheInvoker;
+import io.gravitee.policy.v3.cache.CachePolicyV3;
 import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
@@ -158,6 +159,31 @@ public class CachePolicyTest {
 
         verify(httpExecutionContext, never()).interruptWith(any());
         verify(httpExecutionContext, never()).setInternalAttribute(
+            eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER),
+            any(CacheInvoker.class)
+        );
+    }
+
+    @Test
+    public void shouldIgnoreRefreshAction_WhenRefreshActionDisabled() {
+        when(request.headers()).thenReturn(
+            io.gravitee.gateway.api.http.HttpHeaders.create().add(CachePolicyV3.X_GRAVITEE_CACHE_ACTION, CacheAction.REFRESH.name())
+        );
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(httpExecutionContext.request()).thenReturn(request);
+        when(cachePolicyConfiguration.isAllowRefreshAction()).thenReturn(false);
+        ResourceManager rm = mock(ResourceManager.class);
+        CacheResource cr = mock(CacheResource.class);
+        Cache cache = mock(Cache.class);
+        when(httpExecutionContext.getComponent(ResourceManager.class)).thenReturn(rm);
+        when(rm.getResource(any(), eq(CacheResource.class))).thenReturn(cr);
+        when(cr.getCache(httpExecutionContext)).thenReturn(cache);
+
+        CachePolicy cachePolicy = new CachePolicy(cachePolicyConfiguration);
+        cachePolicy.onRequest(httpExecutionContext);
+
+        verify(httpExecutionContext, never()).interruptWith(any());
+        verify(httpExecutionContext, times(1)).setInternalAttribute(
             eq(InternalContextAttributes.ATTR_INTERNAL_INVOKER),
             any(CacheInvoker.class)
         );

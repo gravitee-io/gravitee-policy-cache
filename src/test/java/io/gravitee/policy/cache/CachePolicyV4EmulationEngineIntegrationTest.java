@@ -41,7 +41,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @GatewayTest
-@DeployApi("/io/gravitee/policy/cache/integration/cacheV3.json")
+@DeployApi({ "/io/gravitee/policy/cache/integration/cacheV3.json", "/io/gravitee/policy/cache/integration/cacheV3RefreshDisabled.json" })
 public abstract class CachePolicyV4EmulationEngineIntegrationTest extends AbstractPolicyTest<CachePolicyV3, CachePolicyConfiguration> {
 
     public static final String RESPONSE_FROM_BACKEND_1 = "response from backend";
@@ -409,6 +409,59 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // We should have called the backend twice
         wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(0);
+    }
+
+    @Test
+    @DisplayName("Should NOT refresh cache when allowRefreshAction is disabled")
+    void shouldNotRefreshCache_WhenRefreshActionDisabled(HttpClient client) throws Exception {
+        wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_1)));
+
+        final var firstObs = client
+            .rxRequest(HttpMethod.GET, "/test-refresh-disabled")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
+            .test();
+
+        firstObs.await(1000, TimeUnit.MILLISECONDS);
+        firstObs
+            .assertComplete()
+            .assertValue(buffer -> {
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
+                return true;
+            })
+            .assertNoErrors();
+
+        DummyCacheResource.checkNumberOfCacheEntries(1);
+
+        wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_2)));
+
+        final var secondObs = client
+            .rxRequest(HttpMethod.GET, "/test-refresh-disabled")
+            .flatMap(request -> request.putHeader(CachePolicyV3.X_GRAVITEE_CACHE_ACTION, CacheAction.REFRESH.name()).rxSend())
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
+            .test();
+
+        secondObs.await(1000, TimeUnit.MILLISECONDS);
+        secondObs
+            .assertComplete()
+            .assertValue(buffer -> {
+                assertThat(buffer).hasToString(RESPONSE_FROM_BACKEND_1);
+                return true;
+            })
+            .assertNoErrors();
+
+        // REFRESH was suppressed: backend called only once
+        wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
+        DummyCacheResource.checkNumberOfCacheEntries(1);
+        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        assertThat(firstEntry).isNotNull();
+        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_1);
     }
 
     private void performFirstCall(HttpClient client) throws InterruptedException {

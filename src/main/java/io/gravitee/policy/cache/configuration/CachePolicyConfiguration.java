@@ -43,6 +43,8 @@ public class CachePolicyConfiguration implements PolicyConfiguration {
 
     private boolean useResponseCacheHeaders = false;
 
+    private boolean allowRefreshAction = true;
+
     public String getCacheName() {
         return cacheName;
     }
@@ -97,5 +99,13 @@ public class CachePolicyConfiguration implements PolicyConfiguration {
 
     public void setResponseCondition(String responseCondition) {
         this.responseCondition = responseCondition;
+    }
+
+    public boolean isAllowRefreshAction() {
+        return allowRefreshAction;
+    }
+
+    public void setAllowRefreshAction(boolean allowRefreshAction) {
+        this.allowRefreshAction = allowRefreshAction;
     }
 }

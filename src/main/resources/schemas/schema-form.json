@@ -74,6 +74,12 @@
                     "text": "Cached response can be set for a single consumer (application) or for all consumers.<br><strong>WARNING:</strong> Please be aware that by using an \"API\" scope, data will be shared between all consumers!"
                 }
             }
+        },
+        "allowRefreshAction": {
+            "title": "Allow REFRESH action",
+            "description": "Allow clients to force a cache refresh via 'X-Gravitee-Cache: REFRESH' or '?cache=REFRESH'. Disable for public APIs to prevent unauthorized cache resets.",
+            "type": "boolean",
+            "default": true
         }
     },
     "required": ["cacheName", "timeToLiveSeconds"]
