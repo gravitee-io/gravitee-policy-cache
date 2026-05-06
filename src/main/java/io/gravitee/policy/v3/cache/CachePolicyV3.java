@@ -95,6 +95,11 @@ public class CachePolicyV3 {
 
         action = lookForAction(request);
 
+        if (action == CacheAction.REFRESH && !cachePolicyConfiguration.isAllowRefreshAction()) {
+            log.debug("REFRESH action is disabled by policy configuration, ignoring for request {}", request.id());
+            action = null;
+        }
+
         if (action != CacheAction.BY_PASS) {
             if (isCachedMethod(request.method())) {
                 // It's safe to do so because a new instance of policy is created for each request.

@@ -28,6 +28,7 @@ import io.gravitee.policy.cache.configuration.SerializationMode;
 import io.gravitee.policy.cache.invoker.CacheInvoker;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
 import io.gravitee.resource.api.ResourceManager;
+import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.reactivex.rxjava3.core.Completable;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +52,12 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
     public Completable onRequest(HttpExecutionContext ctx) {
         setMapperSerializationMode(ctx);
 
-        action = lookForAction(ctx.request());
+        CacheAction action = lookForAction(ctx.request());
+
+        if (action == CacheAction.REFRESH && !cachePolicyConfiguration.isAllowRefreshAction()) {
+            log.debug("REFRESH action is disabled by policy configuration, ignoring for request {}", ctx.request().id());
+            action = null;
+        }
 
         if (action != CacheAction.BY_PASS) {
             if (isCachedMethod(ctx.request().method())) {
@@ -66,7 +72,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
                     );
                 }
 
-                cache = cacheResource.getCache(ctx);
+                Cache cache = cacheResource.getCache(ctx);
                 if (cache == null) {
                     return ctx.interruptWith(
                         new ExecutionFailure(HttpStatusCode.INTERNAL_SERVER_ERROR_500).message(

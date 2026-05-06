@@ -30,6 +30,7 @@ import io.gravitee.gateway.api.http.HttpHeaderNames;
 import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
 import io.gravitee.policy.api.PolicyChain;
+import io.gravitee.policy.cache.CacheAction;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.cache.configuration.CacheScope;
 import io.gravitee.resource.api.ResourceManager;
@@ -201,6 +202,26 @@ public class CachePolicyV3Test {
         verify(policyChain, times(1)).doNext(any(), any());
         verify(policyChain, never()).failWith(any());
         verify(executionContext, never()).setAttribute(eq(ExecutionContext.ATTR_INVOKER), any(CachePolicyV3.CacheInvoker.class));
+    }
+
+    @Test
+    public void shouldIgnoreRefreshAction_WhenRefreshActionDisabled() {
+        when(request.headers()).thenReturn(HttpHeaders.create().add(CachePolicyV3.X_GRAVITEE_CACHE_ACTION, CacheAction.REFRESH.name()));
+        when(request.method()).thenReturn(HttpMethod.GET);
+        when(cachePolicyConfiguration.isAllowRefreshAction()).thenReturn(false);
+        ResourceManager rm = mock(ResourceManager.class);
+        CacheResource cr = mock(CacheResource.class);
+        Cache cache = mock(Cache.class);
+        when(executionContext.getComponent(ResourceManager.class)).thenReturn(rm);
+        when(rm.getResource(any(), eq(CacheResource.class))).thenReturn(cr);
+        when(cr.getCache(executionContext)).thenReturn(cache);
+
+        CachePolicyV3 cachePolicyV3 = new CachePolicyV3(cachePolicyConfiguration);
+        cachePolicyV3.onRequest(request, response, executionContext, policyChain);
+
+        verify(policyChain, times(1)).doNext(any(), any());
+        verify(policyChain, never()).failWith(any());
+        verify(executionContext, times(1)).setAttribute(eq(ExecutionContext.ATTR_INVOKER), any(CachePolicyV3.CacheInvoker.class));
     }
 
     @Test
