@@ -1,3 +1,10 @@
+## [3.0.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/3.0.0...3.0.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* add allowRefreshAction toggle to restrict client-triggered cache resets ([a20e8fe](https://github.com/gravitee-io/gravitee-policy-cache/commit/a20e8fe9881bc7c6e34c408ec28af769ed17c235))
+
 # [3.0.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/2.0.7...3.0.0) (2025-12-11)
 
 
