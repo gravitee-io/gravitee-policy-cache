@@ -44,8 +44,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.core.env.Environment;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -76,7 +74,6 @@ public class CachePolicyV3Test {
     @Before
     public void init() {
         MockitoAnnotations.openMocks(this);
-        when(executionContext.getComponent(Environment.class)).thenReturn(new MockEnvironment());
     }
 
     @Test

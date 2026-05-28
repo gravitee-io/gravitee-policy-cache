@@ -99,17 +99,25 @@ TIP: To learn more about the Gravitee Expression Language, see the *API Publishe
 ----
 
 
-=== Gateway configuration (gravitee.yml)
+=== Cache entry format (advanced / debugging)
 
-WARNING: The `binary` serialization format is not compatible with the Redis cache resource.
+Starting with version `4.0.0`, the cache policy stores each cached HTTP response as a compact binary frame instead of a JSON envelope. Cache keys are unchanged and remain manageable with `redis-cli` (`SCAN`, `DEL`, `TTL`, etc.); cache values are no longer human-readable in `redis-cli`.
 
-[source, yaml]
+The frame layout (big-endian) is:
+
 ----
-  policy:
-    cache:
-      serialization: text # default value or "binary" (not compatible with Redis)
+[1B version=0x01][2B status][4B headersSectionLen][headersSection][bodyBytes...]
+
+headersSection:
+  [2B headerCount]
+  for each header entry (repeated):
+    [2B nameLen][name UTF-8 bytes]
+    [4B valueLen][value UTF-8 bytes]
+  (multi-value headers are encoded as repeated entries with the same name)
+
+bodyBytes: everything after the headers section (length is implicit).
 ----
 
-The `policy.cache.serialization` allow to configure the serialization format of the cache.
+NOTE: Tooling that previously parsed cached values as JSON must be updated. Existing entries from the previous JSON-based format are auto-evicted on first read after upgrade and refetched from the backend.
 
-The default value is `text` but you can also use `binary` to use a binary serialization format (not compatible with Redis).
+The previous `policy.cache.serialization` gateway property (which selected between `text` and `binary` JSON modes) has been removed; it has no effect and may be deleted from `gravitee.yml`.

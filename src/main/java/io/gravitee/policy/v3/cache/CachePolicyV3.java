@@ -15,9 +15,6 @@
  */
 package io.gravitee.policy.v3.cache;
 
-import static io.gravitee.policy.cache.util.ContentTypeUtil.hasBinaryContentType;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpMethod;
 import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.ExecutionContext;
@@ -37,10 +34,9 @@ import io.gravitee.policy.api.annotations.OnRequest;
 import io.gravitee.policy.api.annotations.RequireResource;
 import io.gravitee.policy.cache.CacheAction;
 import io.gravitee.policy.cache.CacheControl;
-import io.gravitee.policy.cache.CacheResponse;
+import io.gravitee.policy.cache.CachedResponse;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.gravitee.policy.cache.configuration.SerializationMode;
-import io.gravitee.policy.cache.mapper.CacheResponseMapper;
+import io.gravitee.policy.cache.frame.CacheFrame;
 import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.policy.cache.util.CacheControlUtil;
 import io.gravitee.policy.cache.util.ExpiresUtil;
@@ -50,15 +46,11 @@ import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.gravitee.resource.cache.api.Element;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Vertx;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.Environment;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
@@ -68,11 +60,6 @@ import org.springframework.core.env.Environment;
 @Slf4j
 public class CachePolicyV3 {
 
-    protected static final String CACHE_SERIALIZATION_MODE_KEY = "policy.cache.serialization";
-
-    /**
-     * Cache policy configuration
-     */
     protected final CachePolicyConfiguration cachePolicyConfiguration;
 
     public static final String UPSTREAM_RESPONSE = "upstreamResponse";
@@ -83,16 +70,12 @@ public class CachePolicyV3 {
     protected Cache cache;
     protected CacheAction action;
 
-    protected CacheResponseMapper mapper = new CacheResponseMapper();
-
     public CachePolicyV3(final CachePolicyConfiguration cachePolicyConfiguration) {
         this.cachePolicyConfiguration = cachePolicyConfiguration;
     }
 
     @OnRequest
     public void onRequest(Request request, Response response, ExecutionContext executionContext, PolicyChain policyChain) {
-        setMapperSerializationMode(executionContext);
-
         action = lookForAction(request);
 
         if (action != CacheAction.BY_PASS) {
@@ -134,88 +117,97 @@ public class CachePolicyV3 {
 
         @Override
         public void invoke(ExecutionContext executionContext, ReadStream<Buffer> stream, Handler<ProxyConnection> connectionHandler) {
-            // Here we have to check if there is a value in cache
             String cacheId = hash(executionContext);
             log.debug("Looking for element in cache with the key {}", cacheId);
 
-            Vertx vertx = executionContext.getComponent(Vertx.class);
-            vertx
-                .executeBlocking(() -> cache.get(cacheId))
+            cache
+                .getBinaryAsync(cacheId)
                 .onComplete(elementAsyncResult -> {
                     Element elt = elementAsyncResult.result();
-                    if (elt != null && action != CacheAction.REFRESH) {
-                        log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+                    byte[] frame = elt == null ? null : CacheFrame.asFrame(elt.value());
 
+                    if (frame != null && action != CacheAction.REFRESH) {
+                        // Try serving from cache. Legacy entries (JSON from policy <= 4.0.0-alpha.2)
+                        // are served read-only to avoid thundering-herd refetches during rolling
+                        // upgrades on shared Redis. See APIM-13628.
+                        boolean legacy = CacheFrame.isLegacyFormat(frame);
                         try {
-                            CacheResponse cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
-                            Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
-                                ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
-                                : cacheResponse.getContent();
-                            cacheResponse.setContent(content);
-                            final ProxyConnection proxyConnection = new CacheProxyConnection(cacheResponse);
-
-                            // Ok, there is a value for this request in cache so send it through proxy connection
+                            CachedResponse cached = legacy ? CacheFrame.decodeLegacy(frame) : CacheFrame.decode(frame);
+                            ProxyConnection proxyConnection = new CacheProxyConnection(cached);
+                            if (legacy) {
+                                log.debug("Serving legacy-format cache entry for key {} (read-only; entry will not be rewritten)", cacheId);
+                            } else {
+                                log.debug(
+                                    "An element has been found for key {}, returning the cached response to the initial client",
+                                    cacheId
+                                );
+                            }
                             connectionHandler.handle(proxyConnection);
-
-                            // Plug underlying stream to connection stream
                             stream.bodyHandler(proxyConnection::write).endHandler(aVoid -> proxyConnection.end());
-                        } catch (JsonProcessingException e) {
-                            log.error(
-                                "Cannot deserialize element with key {}, invoke backend with invoker {}",
+                            executionContext.request().resume();
+                            return;
+                        } catch (Exception e) {
+                            log.warn(
+                                "Cannot decode {} cache entry for key {}, evicting and refetching",
+                                legacy ? "legacy" : "frame",
                                 cacheId,
-                                invoker.getClass().getName()
+                                e
                             );
+                            evictFromCache(cacheId);
                         }
-
-                        // Resume the incoming request to handle content and end
-                        executionContext.request().resume();
+                    } else if (elt != null && action == CacheAction.REFRESH) {
+                        log.info(
+                            "A refresh action has been received for key {}, invoke backend with invoker {}",
+                            cacheId,
+                            invoker.getClass().getName()
+                        );
+                    } else if (frame == null && elt != null) {
+                        log.debug("Cache entry for key {} has unrecognized value type, evicting and refetching", cacheId);
+                        evictFromCache(cacheId);
                     } else {
-                        if (action == CacheAction.REFRESH) {
-                            log.info(
-                                "A refresh action has been received for key {}, invoke backend with invoker {}",
-                                cacheId,
-                                invoker.getClass().getName()
-                            );
-                        } else {
-                            log.debug("No element for key {}, invoke backend with invoker {}", cacheId, invoker.getClass().getName());
-                        }
-
-                        // No value, let's do the default invocation and cache result in response
-                        invoker.invoke(executionContext, stream, proxyConnection -> {
-                            log.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
-
-                            ProxyConnection cacheProxyConnection = new ProxyConnection() {
-                                @Override
-                                public ProxyConnection write(Buffer buffer) {
-                                    proxyConnection.write(buffer);
-                                    return this;
-                                }
-
-                                @Override
-                                public void end() {
-                                    proxyConnection.end();
-                                }
-
-                                @Override
-                                public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
-                                    return proxyConnection.responseHandler(
-                                        new CacheResponseHandler(cacheId, responseHandler, executionContext)
-                                    );
-                                }
-                            };
-
-                            connectionHandler.handle(cacheProxyConnection);
-                        });
+                        log.debug("No element for key {}, invoke backend with invoker {}", cacheId, invoker.getClass().getName());
                     }
+
+                    // No usable cached value: invoke backend and store the response in cache.
+                    invoker.invoke(executionContext, stream, proxyConnection -> {
+                        log.debug("Put response in cache for key {} and request {}", cacheId, executionContext.request().id());
+
+                        ProxyConnection cacheProxyConnection = new ProxyConnection() {
+                            @Override
+                            public ProxyConnection write(Buffer buffer) {
+                                proxyConnection.write(buffer);
+                                return this;
+                            }
+
+                            @Override
+                            public void end() {
+                                proxyConnection.end();
+                            }
+
+                            @Override
+                            public ProxyConnection responseHandler(Handler<ProxyResponse> responseHandler) {
+                                return proxyConnection.responseHandler(
+                                    new CacheResponseHandler(cacheId, responseHandler, executionContext)
+                                );
+                            }
+                        };
+
+                        connectionHandler.handle(cacheProxyConnection);
+                    });
                 });
         }
+    }
+
+    private void evictFromCache(String cacheId) {
+        cache
+            .evictAsync(cacheId)
+            .onFailure(err -> log.warn("Element {} can't be evicted from the cache {}", cacheId, cache.getName(), err));
     }
 
     class CacheResponseHandler implements Handler<ProxyResponse> {
 
         private final String cacheId;
         private final Handler<ProxyResponse> responseHandler;
-        private final CacheResponse response = new CacheResponse();
         private final ExecutionContext executionContext;
 
         CacheResponseHandler(final String cacheId, final Handler<ProxyResponse> responseHandler, ExecutionContext executionContext) {
@@ -265,7 +257,6 @@ public class CachePolicyV3 {
                     bodyHandler.handle(chunk);
                     content.appendBuffer(chunk);
                 });
-
                 return this;
             }
 
@@ -273,32 +264,26 @@ public class CachePolicyV3 {
             public ReadStream<Buffer> endHandler(Handler<Void> endHandler) {
                 this.proxyResponse.endHandler(result -> {
                     endHandler.handle(result);
-                    response.setStatus(proxyResponse.status());
 
                     io.gravitee.common.http.HttpHeaders headers = new io.gravitee.common.http.HttpHeaders();
                     proxyResponse.headers().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
-                    response.setHeaders(headers);
-                    Buffer buffer = hasBinaryContentType(headers) ? Buffer.buffer(Base64.getEncoder().encode(content.getBytes())) : content;
-                    response.setContent(buffer);
-                    Vertx vertx = executionContext.getComponent(Vertx.class);
-                    vertx.executeBlocking(() -> {
-                        long timeToLive = -1;
-                        if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
-                            timeToLive = resolveTimeToLive(proxyResponse);
-                        }
-                        if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
-                            timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
-                        }
 
-                        try {
-                            CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(response));
-                            element.setTimeToLive((int) timeToLive);
-                            cache.put(element);
-                        } catch (JsonProcessingException e) {
-                            log.error("Cannot serialize element with key {}", cacheId);
-                        }
-                        return null;
-                    });
+                    long timeToLive = -1;
+                    if (cachePolicyConfiguration.isUseResponseCacheHeaders()) {
+                        timeToLive = resolveTimeToLive(proxyResponse);
+                    }
+                    if (timeToLive == -1 || cachePolicyConfiguration.getTimeToLiveSeconds() < timeToLive) {
+                        timeToLive = cachePolicyConfiguration.getTimeToLiveSeconds();
+                    }
+                    final int ttl = (int) timeToLive;
+
+                    byte[] frame = CacheFrame.encode(new CachedResponse(proxyResponse.status(), headers, content));
+                    CacheElement element = new CacheElement(cacheId, frame);
+                    element.setTimeToLive(ttl);
+
+                    cache
+                        .putBinaryAsync(element)
+                        .onFailure(err -> log.warn("Cannot store element with key {} into the cache", cacheId, err));
                 });
 
                 return this;
@@ -326,12 +311,6 @@ public class CachePolicyV3 {
         }
     }
 
-    /**
-     * Generate a unique identifier for the cache key.
-     *
-     * @param executionContext
-     * @return
-     */
     String hash(ExecutionContext executionContext) {
         StringBuilder sb = new StringBuilder();
         String cacheName = cachePolicyConfiguration.getCacheName();
@@ -356,7 +335,6 @@ public class CachePolicyV3 {
             key = executionContext.getTemplateEngine().convert(key);
             sb.append(key);
         } else {
-            // Remove latest separator
             sb.deleteCharAt(sb.length() - 1);
         }
 
@@ -431,7 +409,6 @@ public class CachePolicyV3 {
 
     protected boolean isCachedMethod(HttpMethod method) {
         if (cachePolicyConfiguration.getMethods() == null || cachePolicyConfiguration.getMethods().isEmpty()) {
-            //use Safe Methods
             return (method == HttpMethod.GET || method == HttpMethod.OPTIONS || method == HttpMethod.HEAD);
         }
         return cachePolicyConfiguration.getMethods().contains(method);
@@ -448,15 +425,5 @@ public class CachePolicyV3 {
             }
         }
         return true;
-    }
-
-    private void setMapperSerializationMode(ExecutionContext context) {
-        if (mapper.isSerializationModeDefined()) {
-            return;
-        }
-
-        Environment environment = context.getComponent(Environment.class);
-        String serializationModeAsString = environment.getProperty(CACHE_SERIALIZATION_MODE_KEY, SerializationMode.TEXT.name());
-        mapper.setSerializationMode(SerializationMode.valueOf(serializationModeAsString.toUpperCase()));
     }
 }
