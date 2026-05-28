@@ -24,7 +24,6 @@ import io.gravitee.gateway.reactive.api.context.MessageExecutionContext;
 import io.gravitee.gateway.reactive.api.invoker.Invoker;
 import io.gravitee.gateway.reactive.api.policy.Policy;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.gravitee.policy.cache.configuration.SerializationMode;
 import io.gravitee.policy.cache.invoker.CacheInvoker;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
 import io.gravitee.resource.api.ResourceManager;
@@ -32,7 +31,6 @@ import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.reactivex.rxjava3.core.Completable;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.Environment;
 
 @Slf4j
 public class CachePolicy extends CachePolicyV3 implements Policy {
@@ -50,9 +48,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
 
     @Override
     public Completable onRequest(HttpExecutionContext ctx) {
-        setMapperSerializationMode(ctx);
-
-        CacheAction action = lookForAction(ctx.request());
+        action = lookForAction(ctx.request());
 
         if (action == CacheAction.REFRESH && !cachePolicyConfiguration.isAllowRefreshAction()) {
             log.debug("REFRESH action is disabled by policy configuration, ignoring for request {}", ctx.request().id());
@@ -85,7 +81,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
                 Invoker defaultInvoker = ctx.getInternalAttribute(InternalContextAttributes.ATTR_INTERNAL_INVOKER);
                 ctx.setInternalAttribute(
                     InternalContextAttributes.ATTR_INTERNAL_INVOKER,
-                    new CacheInvoker(defaultInvoker, cache, action, cachePolicyConfiguration, mapper)
+                    new CacheInvoker(defaultInvoker, cache, action, cachePolicyConfiguration)
                 );
             } else {
                 log.debug("Request {} is not a cached request, disable caching for it.", ctx.request().id());
@@ -108,16 +104,6 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
     @Override
     public Completable onMessageResponse(MessageExecutionContext ctx) {
         return Completable.error(new UnsupportedOperationException("onMessageResponse method is not supported by cache policy"));
-    }
-
-    private void setMapperSerializationMode(HttpExecutionContext context) {
-        if (mapper.isSerializationModeDefined()) {
-            return;
-        }
-
-        Environment environment = context.getComponent(Environment.class);
-        String serializationModeAsString = environment.getProperty(CACHE_SERIALIZATION_MODE_KEY, SerializationMode.TEXT.name());
-        mapper.setSerializationMode(SerializationMode.valueOf(serializationModeAsString.toUpperCase()));
     }
 
     protected CacheAction lookForAction(HttpRequest request) {

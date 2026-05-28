@@ -25,6 +25,7 @@ import io.gravitee.apim.gateway.tests.sdk.policy.PolicyBuilder;
 import io.gravitee.apim.gateway.tests.sdk.resource.ResourceBuilder;
 import io.gravitee.plugin.policy.PolicyPlugin;
 import io.gravitee.plugin.resource.ResourcePlugin;
+import io.gravitee.policy.cache.CachedResponse;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.v3.cache.CachePolicyV3;
 import io.reactivex.rxjava3.plugins.RxJavaPlugins;
@@ -32,7 +33,6 @@ import io.reactivex.rxjava3.schedulers.TestScheduler;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.rxjava3.core.http.HttpClient;
 import io.vertx.rxjava3.core.http.HttpClientRequest;
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -92,9 +92,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend only once (the first time)
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
-        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        CachedResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
-        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_1);
+        assertThat(firstEntry.body()).hasToString(RESPONSE_FROM_BACKEND_1);
     }
 
     @Test
@@ -190,9 +190,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend a second time
         wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
-        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        CachedResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
-        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_2);
+        assertThat(firstEntry.body()).hasToString(RESPONSE_FROM_BACKEND_2);
     }
 
     @Test
@@ -227,9 +227,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend a second time
         wiremock.verify(2, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
-        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        CachedResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
-        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_2);
+        assertThat(firstEntry.body()).hasToString(RESPONSE_FROM_BACKEND_2);
     }
 
     @Test
@@ -338,9 +338,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // For the second call, we should have called the backend only once (the first time)
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
-        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        CachedResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
-        assertThat(firstEntry.getContent()).hasToString(Base64.getEncoder().encodeToString(RESPONSE_FROM_BACKEND_1.getBytes()));
+        assertThat(firstEntry.body()).hasToString(RESPONSE_FROM_BACKEND_1);
     }
 
     @Test
@@ -462,6 +462,46 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
         assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_1);
+    }
+
+    @Test
+    @DisplayName("Should serve a legacy JSON cache entry as-is without rewriting (rolling-upgrade safety)")
+    void shouldServeLegacyEntryWithoutRewriting(HttpClient client) throws Exception {
+        // Populate the cache normally, then mutate the stored value to look like a legacy JSON String
+        // produced by gravitee-policy-cache <= 4.0.0-alpha.2 (with a distinct body so we can confirm
+        // it's what gets served).
+        performFirstCall(client);
+        DummyCacheResource.checkNumberOfCacheEntries(1);
+        String legacyBody = "legacy-served-body";
+        DummyCacheResource.replaceFirstEntryValueWith("{\"status\":200,\"headers\":{},\"content\":{\"buffer\":\"" + legacyBody + "\"}}");
+
+        // Stub the backend to a DIFFERENT response — if the policy refetches we'll see this instead
+        // of the legacy body. The new policy must NOT refetch.
+        wiremock.stubFor(get("/endpoint").willReturn(ok(RESPONSE_FROM_BACKEND_2)));
+
+        final var obs = client
+            .rxRequest(HttpMethod.GET, "/test")
+            .flatMap(HttpClientRequest::rxSend)
+            .flatMapPublisher(response -> {
+                assertThat(response.statusCode()).isEqualTo(200);
+                return response.toFlowable();
+            })
+            .test();
+
+        obs.await(2000, TimeUnit.MILLISECONDS);
+        obs
+            .assertComplete()
+            .assertValue(buffer -> {
+                // The legacy body must be served as-is, NOT the new backend response.
+                assertThat(buffer).hasToString(legacyBody);
+                return true;
+            })
+            .assertNoErrors();
+
+        // Backend was invoked exactly once (the initial populate). No refetch on the legacy hit.
+        wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
+        // Cache still contains the legacy entry — it was NOT rewritten.
+        DummyCacheResource.checkNumberOfCacheEntries(1);
     }
 
     private void performFirstCall(HttpClient client) throws InterruptedException {
