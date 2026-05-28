@@ -15,10 +15,8 @@
  */
 package io.gravitee.policy.cache.invoker;
 
-import static io.gravitee.policy.cache.util.ContentTypeUtil.hasBinaryContentType;
 import static io.gravitee.policy.v3.cache.CachePolicyV3.UPSTREAM_RESPONSE;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.common.http.HttpHeaders;
 import io.gravitee.common.http.HttpStatusCode;
 import io.gravitee.gateway.api.buffer.Buffer;
@@ -27,9 +25,9 @@ import io.gravitee.gateway.reactive.api.context.*;
 import io.gravitee.gateway.reactive.api.invoker.Invoker;
 import io.gravitee.policy.cache.CacheAction;
 import io.gravitee.policy.cache.CacheControl;
-import io.gravitee.policy.cache.CacheResponse;
+import io.gravitee.policy.cache.CachedResponse;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
-import io.gravitee.policy.cache.mapper.CacheResponseMapper;
+import io.gravitee.policy.cache.frame.CacheFrame;
 import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.policy.cache.util.CacheControlUtil;
 import io.gravitee.policy.cache.util.ExpiresUtil;
@@ -39,9 +37,7 @@ import io.gravitee.resource.cache.api.CacheResource;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -56,19 +52,11 @@ public class CacheInvoker implements Invoker {
     private final CachePolicyConfiguration cachePolicyConfiguration;
     private final Invoker delegateInvoker;
     private final Cache cache;
-    private final CacheResponseMapper mapper;
     private final CacheAction action;
 
-    public CacheInvoker(
-        Invoker delegateInvoker,
-        Cache cache,
-        CacheAction action,
-        CachePolicyConfiguration configuration,
-        CacheResponseMapper mapper
-    ) {
+    public CacheInvoker(Invoker delegateInvoker, Cache cache, CacheAction action, CachePolicyConfiguration configuration) {
         this.cachePolicyConfiguration = configuration;
         this.delegateInvoker = delegateInvoker;
-        this.mapper = mapper;
         this.cache = cache;
         this.action = action;
     }
@@ -80,13 +68,11 @@ public class CacheInvoker implements Invoker {
 
     @Override
     public Completable invoke(ExecutionContext executionContext) {
-        // Here we have to check if there is a value in cache
         var cacheId = hash(executionContext);
         log.debug("Looking for element in cache with the key {}", cacheId);
 
-        return Single.fromCompletionStage(cache.getAsync(cacheId).map(Optional::ofNullable).toCompletionStage())
-            .observeOn(Schedulers.io()) // Deserialize on IO thread to avoid blocking event loop with large payloads
-            .flatMapCompletable(optElt -> {
+        return Single.fromCompletionStage(cache.getBinaryAsync(cacheId).map(Optional::ofNullable).toCompletionStage()).flatMapCompletable(
+            optElt -> {
                 Response response = executionContext.response();
                 if (optElt.isEmpty() || action == CacheAction.REFRESH) {
                     if (action == CacheAction.REFRESH) {
@@ -106,33 +92,53 @@ public class CacheInvoker implements Invoker {
                     return this.delegateInvoker.invoke(executionContext).andThen(
                         storeInCacheEvaluation(executionContext, cacheId, response)
                     );
-                } else {
-                    log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+                }
 
-                    var elt = optElt.get();
+                byte[] frame = CacheFrame.asFrame(optElt.get().value());
+                if (frame == null) {
+                    log.debug("Cache entry for key {} has unrecognized value type, evicting and refetching", cacheId);
+                    evictFromCache(cacheId);
+                    return this.delegateInvoker.invoke(executionContext).andThen(
+                        storeInCacheEvaluation(executionContext, cacheId, response)
+                    );
+                }
+
+                if (CacheFrame.isLegacyFormat(frame)) {
+                    // During a rolling upgrade from gravitee-policy-cache <= 4.0.0-alpha.2, the cache
+                    // may contain legacy JSON entries written by old gateway instances. Serve them as
+                    // a regular cache hit (no evict, no rewrite) to avoid thundering-herd refetches
+                    // against the backend. Entries naturally migrate to the binary format on TTL
+                    // expiry. See APIM-13628.
                     try {
-                        var cacheResponse = mapper.readValue(elt.value().toString(), CacheResponse.class);
-                        response.status(cacheResponse.getStatus());
-                        if (cacheResponse.getHeaders() != null) {
-                            cacheResponse
-                                .getHeaders()
-                                .forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
-                        }
-                        Buffer content = hasBinaryContentType(cacheResponse.getHeaders())
-                            ? Buffer.buffer(Base64.getDecoder().decode(cacheResponse.getContent().getBytes()))
-                            : cacheResponse.getContent();
-                        return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(content)));
-                    } catch (JsonProcessingException e) {
-                        log.warn(
-                            "Cannot deserialize element with key {}, invoke backend with invoker {}",
-                            cacheId,
-                            delegateInvoker.getClass().getName()
-                        );
+                        CachedResponse cached = CacheFrame.decodeLegacy(frame);
+                        response.status(cached.status());
+                        cached.headers().forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
+                        log.debug("Serving legacy-format cache entry for key {} (read-only; entry will not be rewritten)", cacheId);
+                        return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cached.body())));
+                    } catch (Exception e) {
+                        log.warn("Cannot decode legacy cache entry for key {}, evicting and refetching", cacheId, e);
                         evictFromCache(cacheId);
-                        return this.delegateInvoker.invoke(executionContext);
+                        return this.delegateInvoker.invoke(executionContext).andThen(
+                            storeInCacheEvaluation(executionContext, cacheId, response)
+                        );
                     }
                 }
-            });
+
+                try {
+                    CachedResponse cached = CacheFrame.decode(frame);
+                    response.status(cached.status());
+                    cached.headers().forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
+                    log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+                    return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cached.body())));
+                } catch (Exception e) {
+                    log.warn("Cannot decode cache frame for key {}, evicting and refetching", cacheId, e);
+                    evictFromCache(cacheId);
+                    return this.delegateInvoker.invoke(executionContext).andThen(
+                        storeInCacheEvaluation(executionContext, cacheId, response)
+                    );
+                }
+            }
+        );
     }
 
     private Completable storeInCacheEvaluation(ExecutionContext executionContext, String cacheId, Response response) {
@@ -181,21 +187,11 @@ public class CacheInvoker implements Invoker {
     }
 
     private void storeInCache(String cacheId, HttpHeaders httpHeaders, int status, Buffer buffer) {
-        // Serialize on IO scheduler to avoid blocking the event loop with large payloads
-        Single.fromCallable(() -> {
-            final var resp = new CacheResponse();
-            Buffer content = hasBinaryContentType(httpHeaders) ? Buffer.buffer(Base64.getEncoder().encode(buffer.getBytes())) : buffer;
-            resp.setContent(content);
-            resp.setStatus(status);
-            resp.setHeaders(httpHeaders);
+        byte[] frame = CacheFrame.encode(new CachedResponse(status, httpHeaders, buffer));
+        CacheElement element = new CacheElement(cacheId, frame);
+        element.setTimeToLive((int) resolveTimeToLive(httpHeaders));
 
-            long timeToLive = resolveTimeToLive(httpHeaders);
-            CacheElement element = new CacheElement(cacheId, mapper.writeValueAsString(resp));
-            element.setTimeToLive((int) timeToLive);
-            return element;
-        })
-            .subscribeOn(Schedulers.io())
-            .flatMapCompletable(element -> Completable.fromCompletionStage(cache.putAsync(element).toCompletionStage()))
+        Completable.fromCompletionStage(cache.putBinaryAsync(element).toCompletionStage())
             .doOnComplete(() -> log.debug("Element {} stored into the cache {}", cacheId, cache.getName()))
             .onErrorResumeNext(err -> {
                 log.warn("Element {} can't be stored into the cache {}", cacheId, cache.getName(), err);
@@ -206,9 +202,6 @@ public class CacheInvoker implements Invoker {
 
     /**
      * Generate a unique identifier for the cache key.
-     *
-     * @param executionContext
-     * @return
      */
     String hash(HttpExecutionContext executionContext) {
         StringBuilder sb = new StringBuilder();
@@ -234,7 +227,6 @@ public class CacheInvoker implements Invoker {
             key = executionContext.getTemplateEngine().convert(key);
             sb.append(key);
         } else {
-            // Remove latest separator
             sb.deleteCharAt(sb.length() - 1);
         }
 

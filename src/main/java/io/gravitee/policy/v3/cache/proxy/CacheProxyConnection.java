@@ -21,7 +21,7 @@ import io.gravitee.gateway.api.http.HttpHeaders;
 import io.gravitee.gateway.api.proxy.ProxyConnection;
 import io.gravitee.gateway.api.proxy.ProxyResponse;
 import io.gravitee.gateway.api.stream.ReadStream;
-import io.gravitee.policy.cache.CacheResponse;
+import io.gravitee.policy.cache.CachedResponse;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -32,9 +32,9 @@ import java.util.stream.Collectors;
 public class CacheProxyConnection implements ProxyConnection {
 
     private Handler<ProxyResponse> proxyResponseHandler;
-    private final CacheResponse response;
+    private final CachedResponse response;
 
-    public CacheProxyConnection(final CacheResponse response) {
+    public CacheProxyConnection(final CachedResponse response) {
         this.response = response;
     }
 
@@ -59,19 +59,19 @@ public class CacheProxyConnection implements ProxyConnection {
         private Handler<Buffer> bodyHandler;
         private Handler<Void> endHandler;
 
-        private final CacheResponse cacheResponse;
+        private final CachedResponse cachedResponse;
         private final HttpHeaders httpHeaders = HttpHeaders.create();
 
-        CacheProxyResponse(final CacheResponse cacheResponse) {
-            this.cacheResponse = cacheResponse;
-            this.cacheResponse.getHeaders().forEach((s, strings) ->
+        CacheProxyResponse(final CachedResponse cachedResponse) {
+            this.cachedResponse = cachedResponse;
+            this.cachedResponse.headers().forEach((s, strings) ->
                 httpHeaders.set(s, strings.stream().map((Function<String, CharSequence>) s1 -> s1).collect(Collectors.toList()))
             );
         }
 
         @Override
         public int status() {
-            return cacheResponse.getStatus();
+            return cachedResponse.status();
         }
 
         @Override
@@ -93,8 +93,8 @@ public class CacheProxyConnection implements ProxyConnection {
 
         @Override
         public ReadStream<Buffer> resume() {
-            if (cacheResponse.getContent() != null) {
-                bodyHandler.handle(cacheResponse.getContent());
+            if (cachedResponse.body() != null) {
+                bodyHandler.handle(cachedResponse.body());
             }
 
             endHandler.handle(null);

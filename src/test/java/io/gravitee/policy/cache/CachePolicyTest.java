@@ -39,8 +39,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.core.env.Environment;
-import org.springframework.mock.env.MockEnvironment;
 
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 @RunWith(MockitoJUnitRunner.class)
@@ -58,7 +56,6 @@ public class CachePolicyTest {
     @Before
     public void init() {
         MockitoAnnotations.openMocks(this);
-        when(httpExecutionContext.getComponent(Environment.class)).thenReturn(new MockEnvironment());
     }
 
     @Test
