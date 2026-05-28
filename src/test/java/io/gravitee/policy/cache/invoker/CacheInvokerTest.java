@@ -35,7 +35,6 @@ import io.gravitee.gateway.reactive.api.invoker.Invoker;
 import io.gravitee.policy.cache.CacheAction;
 import io.gravitee.policy.cache.configuration.CachePolicyConfiguration;
 import io.gravitee.policy.cache.configuration.CacheScope;
-import io.gravitee.policy.cache.mapper.CacheResponseMapper;
 import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
@@ -67,9 +66,6 @@ public class CacheInvokerTest {
     private Cache cache;
 
     @Mock
-    private CacheResponseMapper mapper;
-
-    @Mock
     private CacheAction action;
 
     @Mock
@@ -80,7 +76,7 @@ public class CacheInvokerTest {
     @Before
     public void init() {
         MockitoAnnotations.openMocks(this);
-        cacheInvoker = new CacheInvoker(delegateInvoker, cache, action, cachePolicyConfiguration, mapper);
+        cacheInvoker = new CacheInvoker(delegateInvoker, cache, action, cachePolicyConfiguration);
     }
 
     @Test

@@ -16,21 +16,16 @@
 package io.gravitee.policy.cache.resource;
 
 import io.gravitee.resource.cache.api.Element;
-import java.io.Serializable;
 
-/**
- * @author David BRASSELY (david.brassely at graviteesource.com)
- * @author GraviteeSource Team
- */
 public class CacheElement implements Element {
 
     private final String key;
 
-    private final Serializable object;
+    private final Object object;
 
     private int timeToLive = 0;
 
-    public CacheElement(String key, Serializable object) {
+    public CacheElement(String key, Object object) {
         this.key = key;
         this.object = object;
     }
@@ -49,7 +44,7 @@ public class CacheElement implements Element {
     }
 
     @Override
-    public Serializable value() {
+    public Object value() {
         return object;
     }
 

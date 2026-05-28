@@ -13,20 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.policy.cache.configuration;
+package io.gravitee.policy.cache;
 
-/**
- * BINARY mode allow to serialize by ignoring the default charset used by the buffer.
- * WARNING: BINARY mode does NOT work with REDIS resource cache.
- */
-public enum SerializationMode {
-    /**
-     * Serialize the cache response as a text.
-     */
-    TEXT,
-    /**
-     * Serialize the cache response as a binary.
-     * WARNING: This mode does NOT work with REDIS resource cache.
-     */
-    BINARY,
-}
+import io.gravitee.common.http.HttpHeaders;
+import io.gravitee.gateway.api.buffer.Buffer;
+
+public record CachedResponse(int status, HttpHeaders headers, Buffer body) {}

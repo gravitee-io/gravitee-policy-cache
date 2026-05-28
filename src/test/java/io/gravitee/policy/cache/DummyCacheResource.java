@@ -15,12 +15,10 @@
  */
 package io.gravitee.policy.cache;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.gravitee.gateway.api.ExecutionContext;
 import io.gravitee.gateway.reactive.api.context.GenericExecutionContext;
 import io.gravitee.gateway.reactive.api.context.base.BaseExecutionContext;
-import io.gravitee.policy.cache.configuration.SerializationMode;
-import io.gravitee.policy.cache.mapper.CacheResponseMapper;
+import io.gravitee.policy.cache.frame.CacheFrame;
 import io.gravitee.policy.cache.resource.CacheElement;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
@@ -36,11 +34,6 @@ import org.junit.jupiter.api.Assertions;
 public class DummyCacheResource extends CacheResource {
 
     private static Cache instance;
-    private static CacheResponseMapper mapper = new CacheResponseMapper();
-
-    static {
-        mapper.setSerializationMode(SerializationMode.TEXT);
-    }
 
     @Override
     public Cache getCache(ExecutionContext executionContext) {
@@ -65,9 +58,29 @@ public class DummyCacheResource extends CacheResource {
         Assertions.assertEquals(expectedSize, ((Map) getDummyCacheInstance().getNativeCache()).size());
     }
 
-    public static CacheResponse getFirstEntry() throws JsonProcessingException {
+    public static CachedResponse getFirstEntry() {
         CacheElement cacheElement = (CacheElement) ((Map) getDummyCacheInstance().getNativeCache()).values().iterator().next();
-        return mapper.readValue(cacheElement.value().toString(), CacheResponse.class);
+        byte[] frame = (byte[]) cacheElement.value();
+        return CacheFrame.decode(frame);
+    }
+
+    public static void replaceFirstEntryValueWith(Object value) {
+        DummyCache dummy = (DummyCache) getDummyCacheInstance();
+        Object firstKey = dummy.map.keySet().iterator().next();
+        dummy.map.put(
+            firstKey,
+            new Element() {
+                @Override
+                public Object key() {
+                    return firstKey;
+                }
+
+                @Override
+                public Object value() {
+                    return value;
+                }
+            }
+        );
     }
 
     @Override
