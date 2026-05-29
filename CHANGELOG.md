@@ -1,3 +1,10 @@
+# [4.0.0-alpha.3](https://github.com/gravitee-io/gravitee-policy-cache/compare/4.0.0-alpha.2...4.0.0-alpha.3) (2026-05-29)
+
+
+### Features
+
+* **cache-policy:** store responses as a binary frame (APIM-13628) ([351c3b0](https://github.com/gravitee-io/gravitee-policy-cache/commit/351c3b034f5d96e22ba8890bc8f3e799dbf91a2d))
+
 # [4.0.0-alpha.2](https://github.com/gravitee-io/gravitee-policy-cache/compare/4.0.0-alpha.1...4.0.0-alpha.2) (2026-04-14)
 
 
