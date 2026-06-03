@@ -1,3 +1,10 @@
+# [4.0.0-alpha.4](https://github.com/gravitee-io/gravitee-policy-cache/compare/4.0.0-alpha.3...4.0.0-alpha.4) (2026-06-03)
+
+
+### Bug Fixes
+
+* bump apim dependency to 4.12.0-milestone.1 ([9ae3cac](https://github.com/gravitee-io/gravitee-policy-cache/commit/9ae3cacebf91790efa89cf37142af5c3581e6fb1))
+
 # [4.0.0-alpha.3](https://github.com/gravitee-io/gravitee-policy-cache/compare/4.0.0-alpha.2...4.0.0-alpha.3) (2026-05-29)
 
 
