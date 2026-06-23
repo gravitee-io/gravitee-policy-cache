@@ -459,9 +459,9 @@ public abstract class CachePolicyV4EmulationEngineIntegrationTest extends Abstra
         // REFRESH was suppressed: backend called only once
         wiremock.verify(1, getRequestedFor(urlPathEqualTo("/endpoint")));
         DummyCacheResource.checkNumberOfCacheEntries(1);
-        CacheResponse firstEntry = DummyCacheResource.getFirstEntry();
+        CachedResponse firstEntry = DummyCacheResource.getFirstEntry();
         assertThat(firstEntry).isNotNull();
-        assertThat(firstEntry.getContent()).hasToString(RESPONSE_FROM_BACKEND_1);
+        assertThat(firstEntry.body()).hasToString(RESPONSE_FROM_BACKEND_1);
     }
 
     @Test
