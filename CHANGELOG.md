@@ -1,3 +1,23 @@
+# [4.0.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/3.0.1...4.0.0) (2026-06-24)
+
+
+### Bug Fixes
+
+* adapt allowRefreshAction integration test to binary-frame cache API ([c3ba2e7](https://github.com/gravitee-io/gravitee-policy-cache/commit/c3ba2e7085da3dfbd14c0c30d10a0bd11dff7810))
+* bump apim dependency to 4.12.0-milestone.1 ([c2a5885](https://github.com/gravitee-io/gravitee-policy-cache/commit/c2a588563aa0d0fa301f7aa9757e17c858a140ef))
+
+
+### Features
+
+* **cache-policy:** store responses as a binary frame (APIM-13628) ([3bbf7d7](https://github.com/gravitee-io/gravitee-policy-cache/commit/3bbf7d7263e43c1ca93dbd7f414ad53ecdb580f2))
+* **cache-policy:** use async Cache API (APIM-13557) ([d2f658d](https://github.com/gravitee-io/gravitee-policy-cache/commit/d2f658d4f3150ac43a1c750bf38b15d4b5822d63))
+* upgrade to Vertx5 ([126039f](https://github.com/gravitee-io/gravitee-policy-cache/commit/126039ff5bf62b393dfa19ce10c3c794daa7e6d7))
+
+
+### BREAKING CHANGES
+
+* upgrade to vertx5
+
 ## [3.0.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/3.0.0...3.0.1) (2026-05-20)
 
 
