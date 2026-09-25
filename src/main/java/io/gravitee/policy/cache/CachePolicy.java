@@ -30,9 +30,9 @@ import io.gravitee.resource.api.ResourceManager;
 import io.gravitee.resource.cache.api.Cache;
 import io.gravitee.resource.cache.api.CacheResource;
 import io.reactivex.rxjava3.core.Completable;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class CachePolicy extends CachePolicyV3 implements Policy {
 
     public static final String PLUGIN_ID = "cache";
@@ -51,7 +51,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
         action = lookForAction(ctx.request());
 
         if (action == CacheAction.REFRESH && !cachePolicyConfiguration.isAllowRefreshAction()) {
-            log.debug("REFRESH action is disabled by policy configuration, ignoring for request {}", ctx.request().id());
+            ctx.withLogger(log).debug("REFRESH action is disabled by policy configuration, ignoring for request {}", ctx.request().id());
             action = null;
         }
 
@@ -84,7 +84,7 @@ public class CachePolicy extends CachePolicyV3 implements Policy {
                     new CacheInvoker(defaultInvoker, cache, action, cachePolicyConfiguration)
                 );
             } else {
-                log.debug("Request {} is not a cached request, disable caching for it.", ctx.request().id());
+                ctx.withLogger(log).debug("Request {} is not a cached request, disable caching for it.", ctx.request().id());
             }
         }
 

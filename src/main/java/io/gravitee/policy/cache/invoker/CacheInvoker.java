@@ -42,9 +42,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class CacheInvoker implements Invoker {
 
     public static final String CACHE_ENDPOINT_INVOKER_ID = "cache-endpoint-invoker";
@@ -69,24 +69,28 @@ public class CacheInvoker implements Invoker {
     @Override
     public Completable invoke(ExecutionContext executionContext) {
         var cacheId = hash(executionContext);
-        log.debug("Looking for element in cache with the key {}", cacheId);
+        executionContext.withLogger(log).debug("Looking for element in cache with the key {}", cacheId);
 
         return Single.fromCompletionStage(cache.getBinaryAsync(cacheId).map(Optional::ofNullable).toCompletionStage()).flatMapCompletable(
             optElt -> {
                 Response response = executionContext.response();
                 if (optElt.isEmpty() || action == CacheAction.REFRESH) {
                     if (action == CacheAction.REFRESH) {
-                        log.info(
-                            "A refresh action has been received for key {}, invoke backend with invoker {}",
-                            cacheId,
-                            this.delegateInvoker.getClass().getName()
-                        );
+                        executionContext
+                            .withLogger(log)
+                            .info(
+                                "A refresh action has been received for key {}, invoke backend with invoker {}",
+                                cacheId,
+                                this.delegateInvoker.getClass().getName()
+                            );
                     } else {
-                        log.debug(
-                            "No element for key {}, invoke backend with invoker {}",
-                            cacheId,
-                            this.delegateInvoker.getClass().getName()
-                        );
+                        executionContext
+                            .withLogger(log)
+                            .debug(
+                                "No element for key {}, invoke backend with invoker {}",
+                                cacheId,
+                                this.delegateInvoker.getClass().getName()
+                            );
                     }
 
                     return this.delegateInvoker.invoke(executionContext).andThen(
@@ -96,7 +100,9 @@ public class CacheInvoker implements Invoker {
 
                 byte[] frame = CacheFrame.asFrame(optElt.get().value());
                 if (frame == null) {
-                    log.debug("Cache entry for key {} has unrecognized value type, evicting and refetching", cacheId);
+                    executionContext
+                        .withLogger(log)
+                        .debug("Cache entry for key {} has unrecognized value type, evicting and refetching", cacheId);
                     evictFromCache(cacheId);
                     return this.delegateInvoker.invoke(executionContext).andThen(
                         storeInCacheEvaluation(executionContext, cacheId, response)
@@ -113,10 +119,14 @@ public class CacheInvoker implements Invoker {
                         CachedResponse cached = CacheFrame.decodeLegacy(frame);
                         response.status(cached.status());
                         cached.headers().forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
-                        log.debug("Serving legacy-format cache entry for key {} (read-only; entry will not be rewritten)", cacheId);
+                        executionContext
+                            .withLogger(log)
+                            .debug("Serving legacy-format cache entry for key {} (read-only; entry will not be rewritten)", cacheId);
                         return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cached.body())));
                     } catch (Exception e) {
-                        log.warn("Cannot decode legacy cache entry for key {}, evicting and refetching", cacheId, e);
+                        executionContext
+                            .withLogger(log)
+                            .warn("Cannot decode legacy cache entry for key {}, evicting and refetching", cacheId, e);
                         evictFromCache(cacheId);
                         return this.delegateInvoker.invoke(executionContext).andThen(
                             storeInCacheEvaluation(executionContext, cacheId, response)
@@ -128,10 +138,12 @@ public class CacheInvoker implements Invoker {
                     CachedResponse cached = CacheFrame.decode(frame);
                     response.status(cached.status());
                     cached.headers().forEach((key, values) -> values.forEach(value -> response.headers().add(key, value)));
-                    log.debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
+                    executionContext
+                        .withLogger(log)
+                        .debug("An element has been found for key {}, returning the cached response to the initial client", cacheId);
                     return response.onBody(body -> body.ignoreElement().andThen(Maybe.just(cached.body())));
                 } catch (Exception e) {
-                    log.warn("Cannot decode cache frame for key {}, evicting and refetching", cacheId, e);
+                    executionContext.withLogger(log).warn("Cannot decode cache frame for key {}, evicting and refetching", cacheId, e);
                     evictFromCache(cacheId);
                     return this.delegateInvoker.invoke(executionContext).andThen(
                         storeInCacheEvaluation(executionContext, cacheId, response)
@@ -149,11 +161,13 @@ public class CacheInvoker implements Invoker {
                 final var status = response.status();
                 return response.onBody(body -> body.doOnSuccess(buffer -> storeInCache(cacheId, httpHeaders, status, buffer)));
             } else {
-                log.debug(
-                    "Response for key {} not put in cache because of the status code {} or the condition",
-                    cacheId,
-                    response.status()
-                );
+                executionContext
+                    .withLogger(log)
+                    .debug(
+                        "Response for key {} not put in cache because of the status code {} or the condition",
+                        cacheId,
+                        response.status()
+                    );
                 return response.onBody(body -> body);
             }
         });
@@ -165,7 +179,7 @@ public class CacheInvoker implements Invoker {
                 context.getTemplateEngine().getTemplateContext().setVariable(UPSTREAM_RESPONSE, response);
                 return context.getTemplateEngine().getValue(condition, Boolean.class);
             } catch (Exception e) {
-                log.error("Unable to evaluate the condition {}", e.getMessage(), e);
+                context.withLogger(log).error("Unable to evaluate the condition {}", e.getMessage(), e);
                 return false;
             }
         }

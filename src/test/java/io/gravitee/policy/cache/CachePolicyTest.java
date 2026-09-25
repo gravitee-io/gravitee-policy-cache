@@ -57,6 +57,9 @@ public class CachePolicyTest {
     @Before
     public void init() {
         MockitoAnnotations.openMocks(this);
+        org.mockito.Mockito.lenient()
+            .when(httpExecutionContext.withLogger(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(org.slf4j.LoggerFactory.getLogger(getClass()));
     }
 
     @Test
