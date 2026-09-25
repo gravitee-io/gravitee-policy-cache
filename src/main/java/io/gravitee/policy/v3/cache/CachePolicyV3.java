@@ -50,14 +50,14 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
  * @author GraviteeSource Team
  */
 @RequireResource
-@Slf4j
+@CustomLog
 public class CachePolicyV3 {
 
     protected final CachePolicyConfiguration cachePolicyConfiguration;

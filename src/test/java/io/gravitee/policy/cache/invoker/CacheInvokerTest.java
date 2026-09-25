@@ -71,6 +71,13 @@ public class CacheInvokerTest {
     @Mock
     protected HttpRequest request;
 
+    @org.junit.jupiter.api.BeforeEach
+    void stubExecutionContextLogger() {
+        org.mockito.Mockito.lenient()
+            .when(httpExecutionContext.withLogger(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(org.slf4j.LoggerFactory.getLogger(getClass()));
+    }
+
     private CacheInvoker cacheInvoker;
 
     @Before
