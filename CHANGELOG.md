@@ -1,3 +1,10 @@
+## [4.0.1](https://github.com/gravitee-io/gravitee-policy-cache/compare/4.0.0...4.0.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **deps:** bump gravitee-apim to 4.12.21 ([00b695a](https://github.com/gravitee-io/gravitee-policy-cache/commit/00b695a91d1d6c6c35070bc8915b056a6c753ea0))
+
 # [4.0.0](https://github.com/gravitee-io/gravitee-policy-cache/compare/3.0.1...4.0.0) (2026-06-24)
 
 
